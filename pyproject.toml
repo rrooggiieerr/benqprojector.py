@@ -1,0 +1,36 @@
+[build-system]
+requires = ["setuptools>=61.0"]
+build-backend = "setuptools.build_meta"
+
+[project]
+name = "benqprojector"
+version = "0.0.1"
+license = {text = "Apache-2.0"}
+authors = [
+    { name="Rogier van Staveren" }
+]
+description = "Library to control BenQ projectors."
+readme = "README.md"
+requires-python = ">=3.7"
+classifiers = [
+    "Programming Language :: Python :: 3",
+    "Intended Audience :: Developers",
+    "License :: OSI Approved :: Apache Software License",
+    "Operating System :: OS Independent",
+]
+dependencies = [
+    "pyserial>=3.4"
+]
+
+[project.urls]
+"Homepage" = "https://github.com/rrooggiieerr/benqprojector.py"
+"Bug Tracker" = "https://github.com/rrooggiieerr/benqprojector.py/issues"
+
+[tool.black]
+target-version = ["py39", "py310"]
+exclude = 'generated'
+
+[tool.isort]
+# https://github.com/PyCQA/isort/wiki/isort-Settings
+profile = "black"
+
