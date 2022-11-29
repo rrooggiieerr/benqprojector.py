@@ -199,11 +199,18 @@ class BenQProjector:
             self._connection.reset_input_buffer()
             self._connection.reset_output_buffer()
 
-            command = f"*{command}={action}#"
-            logger.debug("command %s", command)
+            # Clean input buffer
             self._connection.write(b"\r")
             self._connection.flush()
-            self._connection.readline()
+            response = self._connection.read(1)
+            if response != ">":
+                logger.debug("Unexpected response: %s", response)
+                # Try to clean the input buffer by reading everything
+                response = self._connection.read(1)
+                logger.debug("Unexpected response: %s", response)
+
+            command = f"*{command}={action}#"
+            logger.debug("command %s", command)
             self._connection.write(f"{command}\r".encode("ascii"))
             self._connection.flush()
 
@@ -227,6 +234,10 @@ class BenQProjector:
                     linecount += 1
                     continue
 
+                if response == ">":
+                    logger.debug("Response is command prompt >")
+                    continue
+
                 if not echo_received:
                     if response == command:
                         # Command echo.
@@ -235,6 +246,9 @@ class BenQProjector:
                         continue
                     logger.error("No command echo received")
                     logger.error("Response: %s", response)
+                    # Try to clean the input buffer by reading everything
+                    response = self._connection.readlines()
+                    logger.debug("Unexpected response: %s", response)
                     return None
 
                 if response == "*illegal format#":
@@ -252,9 +266,7 @@ class BenQProjector:
                 logger.debug("Raw response: '%s'", response)
                 matches = self._response_re.match(response)
                 if not matches:
-                    logger.error(
-                        "Unexpected response format, response: %s", response
-                    )
+                    logger.error("Unexpected response format, response: %s", response)
                     return None
                 response = matches.group(2)
                 logger.debug("Processed response: %s", response)
