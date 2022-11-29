@@ -8,7 +8,6 @@ Created on 27 Nov 2022
 import logging
 import re
 import time
-from os import linesep
 
 import serial
 
@@ -208,67 +207,64 @@ class BenQProjector:
             self._connection.write(f"{command}\r".encode("ascii"))
             self._connection.flush()
 
-            response = []
-            response.append(self._connection.readline())
-            response.append(self._connection.readline())
-            response = [s.decode() for s in response]
-            # Cleanup response
-            response = [s.strip(" \n\r\x00") for s in response]
-            # Lowercase the response
-            response = [s.lower() for s in response]
+            linecount = 0
+            echo_received = None
+            while True:
+                if linecount > 5:
+                    logger.error("More than 5 empty responses")
+                    return None
 
-            logger.debug("Response: %s", response)
+                response = self._connection.readline()
+                response = response.decode()
+                # Cleanup response
+                response = response.strip(" \n\r\x00")
+                # Lowercase the response
+                response = response.lower()
+                logger.debug("Response: %s", response)
 
-            if len(response) == 0:
-                # empty line
-                logger.error("Empty response, is your cable right?")
-                return None
+                if response == "":
+                    # empty line
+                    linecount += 1
+                    continue
 
-            if response[0] == command:
-                # Command echo.
-                logger.debug("Command successfully send")
-                response.pop(0)
-            else:
-                logger.error("No command echo received")
-                logger.error("Response: %s", response)
-                return None
+                if not echo_received:
+                    if response == command:
+                        # Command echo.
+                        logger.debug("Command successfully send")
+                        echo_received = True
+                        continue
+                    logger.error("No command echo received")
+                    logger.error("Response: %s", response)
+                    return None
 
-            if response[0] == "*illegal format#":
-                logger.error("Command %s illegal format", command)
-                return None
+                if response == "*illegal format#":
+                    logger.error("Command %s illegal format", command)
+                    return None
 
-            if response[0] == "*unsupported item#":
-                logger.error("Command %s unsupported item", command)
-                return None
+                if response == "*unsupported item#":
+                    logger.error("Command %s unsupported item", command)
+                    return None
 
-            if response[0] == "*block item#":
-                logger.debug("Command %s blocked item", command)
-                return None
+                if response == "*block item#":
+                    logger.debug("Command %s blocked item", command)
+                    return None
 
-            if len(response) == 1:
-                response = response[0]
-            else:
-                response = linesep.join(response)
+                logger.debug("Raw response: '%s'", response)
+                matches = self._response_re.match(response)
+                if not matches:
+                    logger.error(
+                        "Unexpected response format, response: %s", response
+                    )
+                    return None
+                response = matches.group(2)
+                logger.debug("Processed response: %s", response)
 
-            if response == "":
-                response = None
+                return response
         except serial.SerialException as ex:
             logger.exception(
                 "Problem communicating with %s, reason: %s", self._serial_port, ex
             )
-            response = None
-        else:
-            logger.debug("Raw response: '%s'", response)
-
-            if response is not None:
-                matches = self._response_re.match(response)
-                if not matches:
-                    logger.error("Unexpected response format, response: %s", response)
-                    return None
-                response = matches.group(2)
-            logger.debug("Processed response: %s", response)
-
-            return response
+            return None
         finally:
             self._busy = False
 
@@ -620,6 +616,21 @@ class BenQProjector:
             return True
 
         return False
+
+    def volume_level(self, level) -> None:
+        """Set volume to a given level."""
+        if self.volume == level:
+            return True
+
+        while self.volume < level:
+            if not self.volume_up():
+                return False
+
+        while self.volume > level:
+            if not self.volume_down():
+                return False
+
+        return True
 
     def select_source(self, source: str):
         """Select projector input source."""
