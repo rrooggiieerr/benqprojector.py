@@ -18,6 +18,38 @@ logger = logging.getLogger(__name__)
 _SERIAL_TIMEOUT = 0.05
 
 
+class BenQProjectorError(Exception):
+    """Generic BenQ Projector error."""
+
+    def __init__(self, command=None, action=None):
+        self.command = command
+        self.action = action
+
+
+class IllegalFormatError(BenQProjectorError):
+    """Illegal command format error."""
+
+
+class EmptyResponseError(BenQProjectorError):
+    """Empty response error."""
+
+
+class UnsupportedItemError(BenQProjectorError):
+    """Unsupported item error."""
+
+
+class BlockedItemError(BenQProjectorError):
+    """Blocked item error."""
+
+
+class InvallidResponseError(BenQProjectorError):
+    """Empty response error."""
+
+    def __init__(self, command=None, action=None, response=None):
+        super().__init__(self, command, action)
+        self.response = response
+
+
 class BenQProjector:
     """
     BenQProjector class for controlling BenQ projectors.
@@ -41,7 +73,7 @@ class BenQProjector:
     aspect_ratios = None
     projector_positions = None
     lamp_modes = None
-    threed_modes = None # 3D modes
+    threed_modes = None  # 3D modes
 
     # Current modes
     video_source = None
@@ -130,7 +162,7 @@ class BenQProjector:
         if not self._connect():
             return False
 
-        model = self.send_command("modelname")
+        model = self._send_command("modelname")
         assert model is not None, "Failed to retrieve projector model"
         # Is projector powering down?
         self.model = model
@@ -201,7 +233,7 @@ class BenQProjector:
         """
         return self._supported_commands is None or command in self._supported_commands
 
-    def send_command(self, command: str, action: str = "?") -> str:
+    def _send_command(self, command: str, action: str = "?") -> str:
         """
         Send a command to the BenQ projector.
         """
@@ -230,15 +262,15 @@ class BenQProjector:
             self._connection.write(b"\r")
             self._connection.flush()
             response = self._connection.read(1)
-            if response != b'>':
+            if response != b">":
                 logger.error("Unexpected response: %s", response)
                 # Try to clean the input buffer by reading everything
                 response = self._connection.read(1)
                 logger.error("Unexpected response: %s", response)
 
-            command = f"*{command}={action}#"
-            logger.debug("command %s", command)
-            self._connection.write(f"{command}\r".encode("ascii"))
+            _command = f"*{command}={action}#"
+            logger.debug("command %s", _command)
+            self._connection.write(f"{_command}\r".encode("ascii"))
             self._connection.flush()
 
             linecount = 0
@@ -246,7 +278,7 @@ class BenQProjector:
             while True:
                 if linecount > 5:
                     logger.error("More than 5 empty responses")
-                    return None
+                    raise EmptyResponseError(command, action)
 
                 response = self._connection.readline()
                 response = response.decode()
@@ -268,35 +300,35 @@ class BenQProjector:
                     continue
 
                 if not echo_received:
-                    if response == command:
+                    if response == _command:
                         # Command echo.
                         logger.debug("Command successfully send")
                         echo_received = True
                         continue
-                    logger.error("No command echo received")
-                    logger.error("Response: %s", response)
+                    logger.debug("No command echo received")
+                    # logger.error("Response: %s", response)
                     # Try to clean the input buffer by reading everything
-                    response = self._connection.readlines()
-                    logger.error("Unexpected response: %s", response)
-                    return None
+                    # response = self._connection.readlines()
+                    # logger.error("Unexpected response: %s", response)
+                    # return None
 
                 if response == "*illegal format#":
-                    logger.error("Command %s illegal format", command)
-                    return None
+                    logger.error("Command %s illegal format", _command)
+                    raise IllegalFormatError(command, action)
 
                 if response == "*unsupported item#":
-                    logger.error("Command %s unsupported item", command)
-                    return None
+                    logger.error("Command %s unsupported item", _command)
+                    raise UnsupportedItemError(command, action)
 
                 if response == "*block item#":
-                    logger.info("Command %s blocked item", command)
-                    return None
+                    logger.info("Command %s blocked item", _command)
+                    raise BlockedItemError(command, action)
 
                 logger.debug("Raw response: '%s'", response)
                 matches = self._response_re.match(response)
                 if not matches:
                     logger.error("Unexpected response format, response: %s", response)
-                    return None
+                    raise InvallidResponseError(command, action, response)
                 response = matches.group(2)
                 logger.debug("Processed response: %s", response)
 
@@ -308,6 +340,19 @@ class BenQProjector:
             return None
         finally:
             self._busy = False
+
+    def send_command(self, command: str, action: str = "?") -> str:
+        """
+        Send a command to the BenQ projector.
+        """
+        response = None
+
+        try:
+            response = self._send_command(command, action)
+        except BenQProjectorError:
+            pass
+
+        return response
 
     def detect_commands(self):
         """
@@ -321,13 +366,19 @@ class BenQProjector:
         supported_commands = []
         # Loop trough all known commands and test if a response is given.
         for command in PROJECTOR_CONFIGS["all"]["commands"]:
-            response = self.send_command(command, "?")
-            if response is not None:
-                # A response is given, the command is supported.
-                logger.info("Command %s supported", command)
+            try:
+                response = self._send_command(command)
+                if response is not None:
+                    # A response is given, the command is supported.
+                    logger.info("Command %s supported", command)
+                    supported_commands.append(command)
+            except BlockedItemError:
                 supported_commands.append(command)
-            # Give the projector some time to process command
-            time.sleep(0.2)
+            except BenQProjectorError:
+                pass
+            finally:
+                # Give the projector some time to process command
+                time.sleep(0.2)
         # Set the list of known commands.
         self._supported_commands = supported_commands
 
@@ -352,13 +403,19 @@ class BenQProjector:
         supported_modes = []
         # Loop trough all known modes and test if a response is given.
         for mode in all_modes:
-            response = self.send_command(command, mode)
-            if response is not None:
-                # A response is given, the mode is supported.
-                logger.debug("Mode %s supported", mode)
+            try:
+                response = self._send_command(command, mode)
+                if response is not None:
+                    # A response is given, the mode is supported.
+                    logger.debug("Mode %s supported", mode)
+                    supported_modes.append(mode)
+            except BlockedItemError:
                 supported_modes.append(mode)
-            # Give the projector some time to process command
-            time.sleep(0.2)
+            except BenQProjectorError:
+                pass
+            finally:
+                # Give the projector some time to process command
+                time.sleep(0.2)
 
         # Revert mode back to current mode
         self.send_command(command, current_mode)
@@ -370,7 +427,9 @@ class BenQProjector:
         Detect which video sources are supported by the projector.
         """
         logger.info("Detecting supported video sources")
-        self.video_sources = self._detect_modes("sour", PROJECTOR_CONFIGS["all"]["sources"])
+        self.video_sources = self._detect_modes(
+            "sour", PROJECTOR_CONFIGS["all"]["sources"]
+        )
         return self.video_sources
 
     def detect_audio_sources(self):
@@ -455,7 +514,10 @@ class BenQProjector:
             else:
                 self.power_status = self.POWERSTATUS_OFF
                 self._power_timestamp = None
-        elif response == "on":
+
+            return True
+
+        if response == "on":
             if (
                 self.power_status == self.POWERSTATUS_POWERINGON
                 and (time.time() - self._power_timestamp) <= self._poweron_time
@@ -464,12 +526,12 @@ class BenQProjector:
             else:
                 self.power_status = self.POWERSTATUS_ON
                 self._power_timestamp = None
-        else:
-            logger.error("Unknown power status: %s", response)
-            # self.power_status = self.POWERSTATUS_UNKNOWN
-            return False
 
-        return True
+            return True
+
+        logger.error("Unknown power status: %s", response)
+        # self.power_status = self.POWERSTATUS_UNKNOWN
+        return False
 
     def update_volume(self) -> bool:
         """Update the current volume state."""
@@ -488,17 +550,11 @@ class BenQProjector:
 
             self.volume = volume
 
-        return True
-
     def update_video_source(self) -> bool:
         """Update the current video source state."""
         if self.supports_command("sour"):
             self.video_source = self.send_command("sour")
             logger.debug("Video source: %s", self.video_source)
-
-            return True
-
-        return False
 
     def update(self) -> bool:
         """
