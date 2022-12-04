@@ -11,12 +11,11 @@ import time
 
 import serial
 
-from benqprojector.config import (
-    BAUD_RATES,
-    PROJECTOR_CONFIGS,
-)
+from benqprojector.config import BAUD_RATES, PROJECTOR_CONFIGS
 
 logger = logging.getLogger(__name__)
+
+_SERIAL_TIMEOUT = 0.05
 
 
 class BenQProjector:
@@ -33,8 +32,16 @@ class BenQProjector:
     _mac = None
     _unique_id = None
 
+    # Supported commands and modes
     _supported_commands = None
-    sources = None
+    video_sources = None
+    audio_sources = None
+    picture_modes = None
+    color_temperatures = None
+    aspect_ratios = None
+    projector_positions = None
+    lamp_modes = None
+    threed_modes = None
 
     POWERSTATUS_UNKNOWN = -1
     POWERSTATUS_OFF = 0
@@ -98,7 +105,7 @@ class BenQProjector:
                 bytesize=serial.EIGHTBITS,
                 parity=serial.PARITY_NONE,
                 stopbits=serial.STOPBITS_ONE,
-                timeout=0.05,
+                timeout=_SERIAL_TIMEOUT,
             )
 
             # Open the connection
@@ -131,7 +138,7 @@ class BenQProjector:
             "commands", PROJECTOR_CONFIGS.get("all").get("commands")
         )
 
-        self.sources = PROJECTOR_CONFIGS.get(model, {}).get(
+        self.video_sources = PROJECTOR_CONFIGS.get(model, {}).get(
             "sources", PROJECTOR_CONFIGS.get("all").get("sources")
         )
         self.audio_sources = PROJECTOR_CONFIGS.get(model, {}).get(
@@ -147,7 +154,8 @@ class BenQProjector:
             "aspect_ratios", PROJECTOR_CONFIGS.get("all").get("aspect_ratios")
         )
         self.projector_positions = PROJECTOR_CONFIGS.get(model, {}).get(
-            "projector_positions", PROJECTOR_CONFIGS.get("all").get("projector_positions")
+            "projector_positions",
+            PROJECTOR_CONFIGS.get("all").get("projector_positions"),
         )
         self.lamp_modes = PROJECTOR_CONFIGS.get(model, {}).get(
             "lamp_modes", PROJECTOR_CONFIGS.get("all").get("lamp_modes")
@@ -248,8 +256,10 @@ class BenQProjector:
                 logger.debug("Response: %s", response)
 
                 if response == "":
-                    # empty line
+                    # Empty line
                     linecount += 1
+                    # Give the projector some more time to response
+                    time.sleep(_SERIAL_TIMEOUT)
                     continue
 
                 if response == ">":
@@ -278,7 +288,7 @@ class BenQProjector:
                     return None
 
                 if response == "*block item#":
-                    logger.debug("Command %s blocked item", command)
+                    logger.info("Command %s blocked item", command)
                     return None
 
                 logger.debug("Raw response: '%s'", response)
@@ -315,31 +325,122 @@ class BenQProjector:
                 # A response is given, the command is supported.
                 logger.info("Command %s supported", command)
                 supported_commands.append(command)
+            # Give the projector some time to process command
+            time.sleep(0.2)
         # Set the list of known commands.
         self._supported_commands = supported_commands
 
         return self._supported_commands
 
-    def detect_sources(self):
+    def _detect_modes(self, command, all_modes):
         """
-        Detect which sources are supported by the projector.
+        Detect which modes are supported by the projector.
 
-        This is done by trying out all know sources.
+        This is done by trying out all know modes.
         """
-        logger.info("Detecting supported sources")
-        # Empty the current list of supported sources.
-        supported_sources = []
-        # Loop trough all known sources and test if a response is given.
-        for source in PROJECTOR_CONFIGS["all"]["sources"]:
-            response = self.send_command("sour", source)
+        if not self.supports_command(command):
+            return []
+
+        logger.debug("Detecting supported modes for %s", command)
+        # Store current mode
+        current_mode = self.send_command(command)
+        logger.info("Current mode for %s: %s", command, current_mode)
+        if current_mode is None:
+            return []
+
+        supported_modes = []
+        # Loop trough all known modes and test if a response is given.
+        for mode in all_modes:
+            response = self.send_command(command, mode)
             if response is not None:
-                # A response is given, the source is supported.
-                logger.info("Source %s supported", source)
-                supported_sources.append(source)
-        # Set the list of known sources.
-        self.sources = supported_sources
+                # A response is given, the mode is supported.
+                logger.debug("Mode %s supported", mode)
+                supported_modes.append(mode)
+            # Give the projector some time to process command
+            time.sleep(0.2)
 
-        return self.sources
+        # Revert source back to current mode
+        self.send_command(command, current_mode)
+
+        return supported_modes
+
+    def detect_video_sources(self):
+        """
+        Detect which video sources are supported by the projector.
+        """
+        logger.info("Detecting supported video sources")
+        self.video_sources = self._detect_modes("sour", PROJECTOR_CONFIGS["all"]["sources"])
+        return self.video_sources
+
+    def detect_audio_sources(self):
+        """
+        Detect which audio sources are supported by the projector.
+        """
+        logger.info("Detecting supported audio sources")
+        self.audio_sources = self._detect_modes(
+            "audiosour", PROJECTOR_CONFIGS["all"]["audio_sources"]
+        )
+        return self.audio_sources
+
+    def detect_picture_modes(self):
+        """
+        Detect which picture modes are supported by the projector.
+        """
+        logger.info("Detecting supported picture modes")
+        self.picture_modes = self._detect_modes(
+            "appmod", PROJECTOR_CONFIGS["all"]["picture_modes"]
+        )
+        return self.picture_modes
+
+    def detect_color_temperatures(self):
+        """
+        Detect which color temperatures are supported by the projector.
+        """
+        logger.info("Detecting supported color temperatures")
+        self.color_temperatures = self._detect_modes(
+            "ct", PROJECTOR_CONFIGS["all"]["color_temperatures"]
+        )
+        return self.color_temperatures
+
+    def detect_aspect_ratios(self):
+        """
+        Detect which aspect ratios are supported by the projector.
+        """
+        logger.info("Detecting supported aspec ratios")
+        self.aspect_ratios = self._detect_modes(
+            "asp", PROJECTOR_CONFIGS["all"]["aspect_ratios"]
+        )
+        return self.aspect_ratios
+
+    def detect_projector_positions(self):
+        """
+        Detect which projector positions are supported by the projector.
+        """
+        logger.info("Detecting supported projector positions")
+        self.projector_positions = self._detect_modes(
+            "pp", PROJECTOR_CONFIGS["all"]["projector_positions"]
+        )
+        return self.projector_positions
+
+    def detect_lamp_modes(self):
+        """
+        Detect which lamp modes are supported by the projector.
+        """
+        logger.info("Detecting supported lamp modes")
+        self.lamp_modes = self._detect_modes(
+            "lampm", PROJECTOR_CONFIGS["all"]["lamp_modes"]
+        )
+        return self.lamp_modes
+
+    def detect_3d_modes(self):
+        """
+        Detect which 3d modes are supported by the projector.
+        """
+        logger.info("Detecting supported 3d modes")
+        self.threed_modes = self._detect_modes(
+            "3d", PROJECTOR_CONFIGS["all"]["3d_modes"]
+        )
+        return self.threed_modes
 
     def update_power(self) -> bool:
         """Update the current power state."""
@@ -659,15 +760,13 @@ class BenQProjector:
 
         return True
 
-    def select_source(self, source: str):
+    def select_video_source(self, source: str):
         """Select projector input source."""
         source = source.lower()
 
-        if source not in self.sources:
+        if source not in self.video_sources:
             return False
 
-        # self.send_command("sour", source)
-        # response = self._projector.send_command("sour")
         if self.send_command("sour", source) == source:
             self.source = source
             return True

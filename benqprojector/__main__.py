@@ -6,6 +6,7 @@ Created on 27 Nov 2022
 import argparse
 import logging
 import sys
+import time
 
 from serial.serialutil import SerialException
 
@@ -38,7 +39,7 @@ if __name__ == "__main__":
     try:
         if args.action == "status":
             _LOGGER.info("Model: %s", projector.model)
-            _LOGGER.info("Position: %s", projector.position)
+            _LOGGER.info("Position: %s", projector.projector_position)
             if projector.power_status == BenQProjector.POWERSTATUS_OFF:
                 _LOGGER.info("Power off")
             else:
@@ -81,10 +82,36 @@ if __name__ == "__main__":
             _LOGGER.info("Model: %s", projector.model)
 
             supported_commands = projector.detect_commands()
+            time.sleep(2)  # Give the projector some time to settle
+            supported_video_sources = projector.detect_video_sources()
+            time.sleep(2)
+            supported_audio_sources = projector.detect_audio_sources()
+            time.sleep(2)
+            supported_picture_modes = projector.detect_picture_modes()
+            time.sleep(2)
+            supported_color_temperatures = projector.detect_color_temperatures()
+            time.sleep(2)
+            supported_aspect_ratios = projector.detect_aspect_ratios()
+            time.sleep(2)
+            supported_projector_positions = projector.detect_projector_positions()
+            time.sleep(2)
+            supported_lamp_modes = projector.detect_lamp_modes()
+            time.sleep(2)
+            supported_3d_modes = projector.detect_3d_modes()
+
             _LOGGER.info("Supported commands: %s", supported_commands)
-            #
-            # supported_sources = projector.detect_sources()
-            # _LOGGER.info("Supported sources: %s", supported_sources)
+            _LOGGER.info("Supported video sources: %s", supported_video_sources)
+            _LOGGER.info("Supported audio sources: %s", supported_audio_sources)
+            _LOGGER.info("Supported picture modes: %s", supported_picture_modes)
+            _LOGGER.info(
+                "Supported color temperatures: %s", supported_color_temperatures
+            )
+            _LOGGER.info("Supported aspect ratios: %s", supported_aspect_ratios)
+            _LOGGER.info(
+                "Supported projector positions: %s", supported_projector_positions
+            )
+            _LOGGER.info("Supported lamp modes: %s", supported_lamp_modes)
+            _LOGGER.info("Supported 3D modes: %s", supported_3d_modes)
     except SerialException as e:
         _LOGGER.error("Failed to connect to AXA Remote, reason: %s", e)
         sys.exit(1)
