@@ -181,6 +181,55 @@ PROJECTOR_CONFIGS = {
         "poweron_time": 100,
         "poweroff_time": 100,
     },
+    "x3000i": {
+        "commands": [
+             "3d",
+             "appmod",
+             "asp",
+             "back",
+             "baud",
+             "blank",
+             "bri",
+             "con",
+             "ct",
+             "directpower",
+             "down",
+             "enter",
+             "highaltitude",
+             "hkeystone",
+             "lampm",
+             "left",
+             "ltim",
+             "mcufwversion"
+             "menu",
+             "menuposition",
+             "modelname",
+             "mute",
+             "pow",
+             "pp",
+             "qas",
+             "right",
+             "scalerfwversion",
+             "sharp",
+             "sour",
+             "sourmenu"
+             "sysfwversion",
+             "up",
+             "vkeystone",
+             "vol",
+        ],
+        "sources": ["hdmi", "hdmi2", "smartsystem"],
+        "audio_sources": [],
+        "picture_modes": ["bright", "livingroom", "game", "cine", "sport", "user1", "threed"],
+        "color_temperatures": ["warm", "normal", "cool", "native"],
+        "aspect_ratios": ["4:3", "16:9", "2.4:1", "auto"],
+        "projector_positions": ["ft", "re", "rc", "fc"],
+        "menu_positions": ["center", "tl", "tr", "br", "bl"],
+        "lamp_modes": ["lnor", "eco", "seco", "custom"],
+        "3d_modes": ["off", "auto", "fs", "da", "iv", "sbs", "tb"], # sbs and tb were enabled with a firmware update but undocumented
+        "poweron_time": 100,
+        "poweroff_time": 100,
+    }
 }
 
 BAUD_RATES = [2400, 4800, 9600, 14400, 19200, 38400, 57600, 115200]
@@ -208,3 +257,4 @@ BAUD_RATES = [2400, 4800, 9600, 14400, 19200, 38400, 57600, 115200]
 #     "std": "standard",
 #     "threed": "3d",
 # }
+
