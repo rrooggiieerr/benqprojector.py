@@ -71,7 +71,7 @@ if __name__ == "__main__":
                 _LOGGER.info("Volume           : %s", projector.volume)
                 _LOGGER.info("Muted            : %s", projector.muted)
 
-            _LOGGER.info("Supported sources: %s", projector.sources)
+            _LOGGER.info("Supported video sources: %s", projector.video_sources)
         elif args.action == "on":
             if projector.turn_on():
                 pass
