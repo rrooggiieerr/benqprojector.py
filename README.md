@@ -72,4 +72,4 @@ projector supports. If you like to have your projector fully supported by this
 Python library please run this command and create an issue on Github with the
 output attached.
 
-To examint your projector capabilities: `python3 -m benqprojector <serial port> <baud> examine`
+To examine your projector capabilities: `python3 -m benqprojector <serial port> <baud> examine`
