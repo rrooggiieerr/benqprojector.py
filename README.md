@@ -10,6 +10,8 @@ BenQ projectors and flat pannels with a serial port can support one of three
 protocols. This plugin supports projectors which are of the P series but
 probably also others.
 
+[<img src="https://cdn.buymeacoffee.com/buttons/v2/default-yellow.png" alt="Buy Me A Coffee" style="height: 60px !important;width: 217px !important;" >](https://www.buymeacoffee.com/rrooggiieerr)  
+
 ## Protocol
 
 This are the protocol details:
@@ -60,6 +62,14 @@ manager PIP:
 You can use the Python BenQ projector library directly from the command line
 to turn on and off your projector using the following syntax:
 
-Status of the projector: `python3 -m benqprojector <serial port> status`  
-Turn on the projector: `python3 -m benqprojector <serial port> on`  
-Turn off the projector: `python3 -m benqprojector <serial port> off`
+Status of the projector: `python3 -m benqprojector <serial port> <baud> status`  
+Turn on the projector: `python3 -m benqprojector <serial port> <baud> on`  
+Turn off the projector: `python3 -m benqprojector <serial port> <baud> off`
+
+### Detecting your projector capabilities
+The benqprojector CLI can detect the commands, sources and modes your
+projector supports. If you like to have your projector fully supported by this
+Python library please run this command and create an issue on Github with the
+output attached.
+
+To examint your projector capabilities: `python3 -m benqprojector <serial port> <baud> examine`
