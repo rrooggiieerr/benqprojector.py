@@ -73,3 +73,6 @@ Python library please run this command and create an issue on Github with the
 output attached.
 
 To examine your projector capabilities: `python3 -m benqprojector <serial port> <baud> examine`
+
+Your projector needs to be on to be able to detact all your projector
+capabilities.
