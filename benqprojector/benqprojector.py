@@ -41,7 +41,17 @@ class BenQProjector:
     aspect_ratios = None
     projector_positions = None
     lamp_modes = None
-    threed_modes = None
+    threed_modes = None # 3D modes
+
+    # Current modes
+    video_source = None
+    audio_source = None
+    picture_mode = None
+    color_temperature = None
+    aspect_ratio = None
+    projector_position = None
+    lamp_mode = None
+    threed_mode = None  # 3D mode
 
     POWERSTATUS_UNKNOWN = -1
     POWERSTATUS_OFF = 0
@@ -55,26 +65,17 @@ class BenQProjector:
     _power_timestamp = None
     direct_power_on = None
 
-    projector_position = None
-
-    lamp_mode = None
     lamp_time = None
     lamp2_time = None
 
     volume = None
     muted = None
 
-    source = None
-    threed = None  # 3D
-
-    picture_mode = None
-    aspect_ratio = None
     brilliant_color = None
     blank = None
     brightness = None
     color_value = None
     contrast = None
-    color_temperature = None
     high_altitude = None
     quick_auto_search = None
     sharpness = None
@@ -359,7 +360,7 @@ class BenQProjector:
             # Give the projector some time to process command
             time.sleep(0.2)
 
-        # Revert source back to current mode
+        # Revert mode back to current mode
         self.send_command(command, current_mode)
 
         return supported_modes
@@ -489,11 +490,11 @@ class BenQProjector:
 
         return True
 
-    def update_source(self) -> bool:
-        """Update the current source state."""
+    def update_video_source(self) -> bool:
+        """Update the current video source state."""
         if self.supports_command("sour"):
-            self.source = self.send_command("sour")
-            logger.debug("Source: %s", self.source)
+            self.video_source = self.send_command("sour")
+            logger.debug("Video source: %s", self.video_source)
 
             return True
 
@@ -529,7 +530,7 @@ class BenQProjector:
                 self.projector_position = self.send_command("pp")
 
         if self.power_status in [self.POWERSTATUS_POWERINGOFF, self.POWERSTATUS_OFF]:
-            self.threed = None
+            self.threed_mode = None
             self.picture_mode = None
             self.aspect_ratio = None
             self.brilliant_color = None
@@ -542,15 +543,15 @@ class BenQProjector:
             self.lamp_mode = None
             self.sharpness = None
 
-            self.source = None
+            self.video_source = None
 
             self.muted = None
             self.volume = None
         elif self.power_status in [self.POWERSTATUS_POWERINGON, self.POWERSTATUS_ON]:
             # Commands which only work when powered on
             if self.supports_command("3d"):
-                self.threed = self.send_command("3d")
-                logger.debug("3D: %s", self.threed)
+                self.threed_mode = self.send_command("3d")
+                logger.debug("3D: %s", self.threed_mode)
 
             if self.supports_command("appmod"):
                 self.picture_mode = self.send_command("appmod")
@@ -606,7 +607,7 @@ class BenQProjector:
                 self.sharpness = self.send_command("sharp")
                 logger.debug("Sharpness: %s", self.sharpness)
 
-            self.update_source()
+            self.update_video_source()
             self.update_volume()
 
         return True
@@ -760,15 +761,15 @@ class BenQProjector:
 
         return True
 
-    def select_video_source(self, source: str):
-        """Select projector input source."""
-        source = source.lower()
+    def select_video_source(self, video_source: str):
+        """Select projector video source."""
+        video_source = video_source.lower()
 
-        if source not in self.video_sources:
+        if video_source not in self.video_sources:
             return False
 
-        if self.send_command("sour", source) == source:
-            self.source = source
+        if self.send_command("sour", video_source) == video_source:
+            self.video_source = video_source
             return True
 
         return False

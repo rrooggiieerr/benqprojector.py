@@ -54,7 +54,7 @@ if __name__ == "__main__":
                 _LOGGER.info("Lamp time        : %s hours", projector.lamp_time)
 
             if projector.power_status == BenQProjector.POWERSTATUS_ON:
-                _LOGGER.info("3D               : %s", projector.threed)
+                _LOGGER.info("3D               : %s", projector.threed_mode)
                 _LOGGER.info("Picture mode     : %s", projector.picture_mode)
                 _LOGGER.info("Aspect ratio     : %s", projector.aspect_ratio)
                 _LOGGER.info("Brilliant color  : %s", projector.brilliant_color)
@@ -67,7 +67,7 @@ if __name__ == "__main__":
                 _LOGGER.info("Lamp mode        : %s", projector.lamp_mode)
                 _LOGGER.info("Quick auto search: %s", projector.quick_auto_search)
                 _LOGGER.info("Sharpness        : %s", projector.sharpness)
-                _LOGGER.info("Source           : %s", projector.source)
+                _LOGGER.info("Video Source     : %s", projector.video_source)
                 _LOGGER.info("Volume           : %s", projector.volume)
                 _LOGGER.info("Muted            : %s", projector.muted)
 
