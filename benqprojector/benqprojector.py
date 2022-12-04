@@ -13,9 +13,6 @@ import serial
 
 from benqprojector.config import (
     BAUD_RATES,
-    LAMP_MODES,
-    PICTURE_MODES,
-    POSITIONS,
     PROJECTOR_CONFIGS,
 )
 
@@ -51,7 +48,7 @@ class BenQProjector:
     _power_timestamp = None
     direct_power_on = None
 
-    position = None
+    projector_position = None
 
     lamp_mode = None
     lamp_time = None
@@ -137,12 +134,33 @@ class BenQProjector:
         self.sources = PROJECTOR_CONFIGS.get(model, {}).get(
             "sources", PROJECTOR_CONFIGS.get("all").get("sources")
         )
+        self.audio_sources = PROJECTOR_CONFIGS.get(model, {}).get(
+            "audio_sources", PROJECTOR_CONFIGS.get("all").get("audio_sources")
+        )
+        self.picture_modes = PROJECTOR_CONFIGS.get(model, {}).get(
+            "picture_modes", PROJECTOR_CONFIGS.get("all").get("picture_modes")
+        )
+        self.color_temperatures = PROJECTOR_CONFIGS.get(model, {}).get(
+            "color_temperatures", PROJECTOR_CONFIGS.get("all").get("color_temperatures")
+        )
+        self.aspect_ratios = PROJECTOR_CONFIGS.get(model, {}).get(
+            "aspect_ratios", PROJECTOR_CONFIGS.get("all").get("aspect_ratios")
+        )
+        self.projector_positions = PROJECTOR_CONFIGS.get(model, {}).get(
+            "projector_positions", PROJECTOR_CONFIGS.get("all").get("projector_positions")
+        )
+        self.lamp_modes = PROJECTOR_CONFIGS.get(model, {}).get(
+            "lamp_modes", PROJECTOR_CONFIGS.get("all").get("lamp_modes")
+        )
+        self.threed_modes = PROJECTOR_CONFIGS.get(model, {}).get(
+            "3d_modes", PROJECTOR_CONFIGS.get("all").get("3d_modes")
+        )
 
         self._poweron_time = PROJECTOR_CONFIGS.get(model, {}).get(
-            "on_time", PROJECTOR_CONFIGS.get("all").get("poweron_time")
+            "poweron_time", PROJECTOR_CONFIGS.get("all").get("poweron_time")
         )
         self._poweroff_time = PROJECTOR_CONFIGS.get(model, {}).get(
-            "off_time", PROJECTOR_CONFIGS.get("all").get("poweroff_time")
+            "poweroff_time", PROJECTOR_CONFIGS.get("all").get("poweroff_time")
         )
 
         mac = None
@@ -203,11 +221,11 @@ class BenQProjector:
             self._connection.write(b"\r")
             self._connection.flush()
             response = self._connection.read(1)
-            if response != ">":
-                logger.debug("Unexpected response: %s", response)
+            if response != b'>':
+                logger.error("Unexpected response: %s", response)
                 # Try to clean the input buffer by reading everything
                 response = self._connection.read(1)
-                logger.debug("Unexpected response: %s", response)
+                logger.error("Unexpected response: %s", response)
 
             command = f"*{command}={action}#"
             logger.debug("command %s", command)
@@ -248,7 +266,7 @@ class BenQProjector:
                     logger.error("Response: %s", response)
                     # Try to clean the input buffer by reading everything
                     response = self._connection.readlines()
-                    logger.debug("Unexpected response: %s", response)
+                    logger.error("Unexpected response: %s", response)
                     return None
 
                 if response == "*illegal format#":
@@ -407,8 +425,7 @@ class BenQProjector:
             # Commands which only work when powered on or off, not when
             # powering on or off
             if self.supports_command("pp"):
-                response = self.send_command("pp")
-                self.position = POSITIONS.get(response, response)
+                self.projector_position = self.send_command("pp")
 
         if self.power_status in [self.POWERSTATUS_POWERINGOFF, self.POWERSTATUS_OFF]:
             self.threed = None
@@ -435,8 +452,7 @@ class BenQProjector:
                 logger.debug("3D: %s", self.threed)
 
             if self.supports_command("appmod"):
-                response = self.send_command("appmod")
-                self.picture_mode = PICTURE_MODES.get(response, response)
+                self.picture_mode = self.send_command("appmod")
                 logger.debug("Picture mode: %s", self.picture_mode)
 
             if self.supports_command("asp"):
@@ -478,8 +494,7 @@ class BenQProjector:
                 logger.debug("High altitude: %s", self.high_altitude)
 
             if self.supports_command("lampm"):
-                response = self.send_command("lampm")
-                self.lamp_mode = LAMP_MODES.get(response, response)
+                self.lamp_mode = self.send_command("lampm")
                 logger.debug("Lamp mode: %s", self.lamp_mode)
 
             if self.supports_command("qas"):
