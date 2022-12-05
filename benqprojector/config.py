@@ -64,6 +64,7 @@ PROJECTOR_CONFIGS = {
             "wireless",
             "ypbr",
             "ypbr2",
+            "smartsystem",
         ],
         "audio_sources": [
             "off",
