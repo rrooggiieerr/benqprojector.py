@@ -115,6 +115,9 @@ class BenQProjector:
     # Compile regular expression to match the command response.
     _response_re = re.compile(r"^\*?([^=]*)=(.*)#$")
 
+    # Some projectors do not echo the given command, the code tries to detect if this is the case
+    _expect_command_echo = True
+
     def __init__(
         self,
         serial_port: str,  # The serial port where the RS-485 interface and
@@ -299,18 +302,14 @@ class BenQProjector:
                     logger.debug("Response is command prompt >")
                     continue
 
-                if not echo_received:
+                if self._expect_command_echo and not echo_received:
                     if response == _command:
                         # Command echo.
                         logger.debug("Command successfully send")
                         echo_received = True
                         continue
                     logger.debug("No command echo received")
-                    # logger.error("Response: %s", response)
-                    # Try to clean the input buffer by reading everything
-                    # response = self._connection.readlines()
-                    # logger.error("Unexpected response: %s", response)
-                    # return None
+                    self._expect_command_echo = False 
 
                 if response == "*illegal format#":
                     logger.error("Command %s illegal format", _command)
