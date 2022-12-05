@@ -46,7 +46,7 @@ class InvallidResponseError(BenQProjectorError):
     """Empty response error."""
 
     def __init__(self, command=None, action=None, response=None):
-        super().__init__(self, command, action)
+        super().__init__(command, action)
         self.response = response
 
 
