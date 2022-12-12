@@ -7,8 +7,8 @@ projector and have not implemented any network functionality. Contact me if
 you have a network connected BenQ projector and like this to work.
 
 BenQ projectors and flat pannels with a serial port can support one of three
-protocols. This plugin supports projectors which are of the P series but
-probably also others.
+protocols. This plugin supports projectors which are of the L, P, T, W and X
+series but probably also others.
 
 [<img src="https://cdn.buymeacoffee.com/buttons/v2/default-yellow.png" alt="Buy Me A Coffee" style="height: 60px !important;width: 217px !important;" >](https://www.buymeacoffee.com/rrooggiieerr)  
 
@@ -32,10 +32,11 @@ Source HDMI: `<CR>*sour=hdmi#<CR>`
 ## Supported projectors
 
 Known to work:
-W1110
+* W1110
+* X3000i
 
 Not tested but use te same protocol according to the documentation:  
-Others in the P Series
+Others in the L, P, T, W and X Series
 
 Not supported:
 * RP552
