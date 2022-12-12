@@ -5,6 +5,7 @@ Created on 27 Nov 2022
 
 @author: Rogier van Staveren
 """
+import asyncio
 import logging
 import re
 import time
@@ -62,7 +63,7 @@ class BenQProjector:
 
     model = None
     _mac = None
-    _unique_id = None
+    unique_id = None
 
     # Supported commands and modes
     _supported_commands = None
@@ -122,7 +123,7 @@ class BenQProjector:
         self,
         serial_port: str,  # The serial port where the RS-485 interface and
         # screen is connected to.
-        baud_rate,
+        baud_rate: int,
     ):
         """
         Initialises the BenQProjector object.
@@ -213,13 +214,13 @@ class BenQProjector:
 
         if mac is not None:
             self._mac = mac.lower()
-            self._unique_id = self._mac
+            self.unique_id = self._mac
         else:
-            self._unique_id = self._serial_port
+            self.unique_id = self._serial_port
 
         logger.info("Device %s available", self._serial_port)
 
-        self.update()
+        self.update_power()
 
         return True
 
@@ -235,6 +236,17 @@ class BenQProjector:
         If the list of supported commands is not (yet) set it is assumed the command is supported.
         """
         return self._supported_commands is None or command in self._supported_commands
+
+    def _sleep(self, seconds):
+        try:
+            asyncio.get_running_loop()
+            # async def __sleep():
+            #     await asyncio.sleep(seconds)
+            # asyncio.run(__sleep())
+            # asyncio.run(asyncio.sleep(seconds))
+        except RuntimeError:
+            # No running event loop, time.sleep() is safe to use.
+            time.sleep(seconds)
 
     def _send_command(self, command: str, action: str = "?") -> str:
         """
@@ -252,7 +264,7 @@ class BenQProjector:
 
         while self._busy is True:
             logger.info("to busy for %s=%s", command, action)
-            time.sleep(0.1)
+            self._sleep(0.1)
         self._busy = True
 
         response = None
@@ -276,40 +288,65 @@ class BenQProjector:
             self._connection.write(f"{_command}\r".encode("ascii"))
             self._connection.flush()
 
-            linecount = 0
+            empty_line_count = 0
             echo_received = None
+            previous_response = None
             while True:
-                if linecount > 5:
+                if empty_line_count > 5:
                     logger.error("More than 5 empty responses")
-                    raise EmptyResponseError(command, action)
+                    if echo_received and previous_response:
+                        # It's possible that the previous response is
+                        # misinterpreted as being the command echo while it
+                        # actually was the command response.
+                        # In that case we continue the response processing
+                        # using the previous response.
+                        response = previous_response
+                    else:
+                        raise EmptyResponseError(command, action)
+                else:
+                    response = self._connection.readline()
+                    response = response.decode()
+                    # Cleanup response
+                    response = response.strip(" \n\r\x00")
+                    # Lowercase the response
+                    logger.debug("Response: %s", response)
 
-                response = self._connection.readline()
-                response = response.decode()
-                # Cleanup response
-                response = response.strip(" \n\r\x00")
-                # Lowercase the response
-                response = response.lower()
-                logger.debug("Response: %s", response)
-
-                if response == "":
-                    # Empty line
-                    linecount += 1
-                    # Give the projector some more time to response
-                    time.sleep(_SERIAL_TIMEOUT)
-                    continue
+                    if response == "":
+                        logger.debug("Empty line")
+                        # Empty line
+                        empty_line_count += 1
+                        # Some projectors (X3000i) seem to return an empty line
+                        # instead of a command echo in some cases.
+                        # For that reason only give the projector some more time
+                        # to respond after more than 1 empty line.
+                        if empty_line_count > 1:
+                            # Give the projector some more time to response
+                            self._sleep(_SERIAL_TIMEOUT)
+                        continue
 
                 if response == ">":
                     logger.debug("Response is command prompt >")
                     continue
 
+                if action == "?" and not echo_received and response == _command:
+                    # Command echo.
+                    logger.debug("Command successfully send")
+                    echo_received = True
+                    self._expect_command_echo = True
+                    continue
+
                 if self._expect_command_echo and not echo_received:
-                    if response == _command:
+                    if action != "?" and response == _command:
                         # Command echo.
                         logger.debug("Command successfully send")
                         echo_received = True
+                        previous_response = response
                         continue
                     logger.debug("No command echo received")
-                    self._expect_command_echo = False 
+                    self._expect_command_echo = False
+
+                response = response.lower()
+                logger.debug("LC Response: %s", response)
 
                 if response == "*illegal format#":
                     logger.error("Command %s illegal format", _command)
@@ -377,7 +414,7 @@ class BenQProjector:
                 pass
             finally:
                 # Give the projector some time to process command
-                time.sleep(0.2)
+                self._sleep(0.2)
         # Set the list of known commands.
         self._supported_commands = supported_commands
 
@@ -414,7 +451,7 @@ class BenQProjector:
                 pass
             finally:
                 # Give the projector some time to process command
-                time.sleep(0.2)
+                self._sleep(0.2)
 
         # Revert mode back to current mode
         self.send_command(command, current_mode)
