@@ -5,6 +5,6 @@ Created on 27 Nov 2022
 
 @author: Rogier van Staveren
 """
-__version__ = "0.0.7"
+__version__ = "0.0.8"
 
 from benqprojector.benqprojector import BenQProjector
