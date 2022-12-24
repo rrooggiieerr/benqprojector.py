@@ -10,8 +10,6 @@ BenQ projectors and flat pannels with a serial port can support one of three
 protocols. This plugin supports projectors which are of the L, P, T, W and X
 series but probably also others.
 
-[<img src="https://cdn.buymeacoffee.com/buttons/v2/default-yellow.png" alt="Buy Me A Coffee" style="height: 60px !important;width: 217px !important;" >](https://www.buymeacoffee.com/rrooggiieerr)  
-
 ## Protocol
 
 This are the protocol details:
@@ -77,3 +75,6 @@ To examine your projector capabilities: `python3 -m benqprojector <serial port> 
 
 Your projector needs to be on to be able to detact all your projector
 capabilities.
+
+Do you enjoy using this Python library? Then consider supporting my work:\
+[<img src="https://cdn.buymeacoffee.com/buttons/v2/default-yellow.png" alt="Buy Me A Coffee" style="height: 60px !important;width: 217px !important;" >](https://www.buymeacoffee.com/rrooggiieerr)  

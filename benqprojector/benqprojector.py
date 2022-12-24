@@ -263,7 +263,7 @@ class BenQProjector:
             return None
 
         while self._busy is True:
-            logger.info("to busy for %s=%s", command, action)
+            logger.info("Too busy for %s=%s", command, action)
             self._sleep(0.1)
         self._busy = True
 
