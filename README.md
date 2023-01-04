@@ -2,10 +2,6 @@
 
 Python library to control BenQ projectors over the serial interface.
 
-The same commands should work over a network connection, but I don't own such
-projector and have not implemented any network functionality. Contact me if
-you have a network connected BenQ projector and like this to work.
-
 BenQ projectors and flat pannels with a serial port can support one of three
 protocols. This plugin supports projectors which are of the L, P, T, W and X
 series but probably also others.
@@ -20,12 +16,21 @@ This are the protocol details:
 <CR>*<key>=<value>#<CR>
 ```
 
-Where `<CR>` is a Cariage Return
+Where `<CR>` is a Carriage Return
 
 Examples:  
 Power on   : `<CR>*pow=on#<CR>`  
 Power off  : `<CR>*pow=off#<CR>`  
 Source HDMI: `<CR>*sour=hdmi#<CR>`  
+
+The same commands should work over a network connection, but I don't own such
+projector and have not implemented any network functionality. Contact me if
+you have a network connected BenQ projector and like this to work.
+
+### PJLink
+
+This library does **not** implement the PJLink protocol, but a proparitary
+BenQ protocol instead. The PJLink protocol is covered by other libraries.
 
 ## Supported projectors
 
