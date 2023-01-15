@@ -41,7 +41,6 @@ PROJECTOR_CONFIGS = {
             "ltim",
             "ltim2",
             "macaddr",
-            "menu",
             "menuposition",
             "micvol",
             "modelname",
