@@ -296,7 +296,6 @@ class BenQProjector:
                     response = response.decode()
                     # Cleanup response
                     response = response.strip(" \n\r\x00")
-                    # Lowercase the response
                     logger.debug("Response: %s", response)
 
                     if response == "":
@@ -361,6 +360,7 @@ class BenQProjector:
         self._connection.flush()
 
     def _parse_response(self, command, action, _command, response):
+        # Lowercase the response
         response = response.lower()
         logger.debug("LC Response: %s", response)
 
@@ -407,11 +407,31 @@ class BenQProjector:
         """
         Send a raw command to the BenQ projector.
         """
-        self._send_raw_command(command)
+        while self._busy is True:
+            logger.info("Too busy for %s=%s", command)
+            self._sleep(0.1)
+        self._busy = True
+
+        response = None
+
+        try:
+            self._send_raw_command(command)
+            
+            # Read and log the response
+            while (_response := self._connection.readline()):
+                response = _response.decode()
+                # Cleanup response
+                response = response.strip(" \n\r\x00")
+                logger.debug(response)
+        except serial.SerialException as ex:
+            logger.exception(
+                "Problem communicating with %s, reason: %s", self._serial_port, ex
+            )
+            return None
+        finally:
+            self._busy = False
         
-        # Read and log the response
-        while (response := self._connection.readline()):
-            logger.debug(response)
+        return response
 
     def detect_commands(self):
         """
