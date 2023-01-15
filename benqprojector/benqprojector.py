@@ -274,7 +274,7 @@ class BenQProjector:
             self._connection.reset_output_buffer()
 
             _command = f"*{command}={action}#"
-            self.send_raw_command(_command)
+            self._send_raw_command(_command)
 
             empty_line_count = 0
             echo_received = None
