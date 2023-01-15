@@ -246,6 +246,7 @@ PROJECTOR_CONFIGS = {
             "highaltitude",
             "lampm",
             "ltim",
+            "menu",
             "modelname",
             "mute",
             "pow",
