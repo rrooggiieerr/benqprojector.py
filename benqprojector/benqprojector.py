@@ -345,30 +345,7 @@ class BenQProjector:
                     logger.debug("No command echo received")
                     self._expect_command_echo = False
 
-                response = response.lower()
-                logger.debug("LC Response: %s", response)
-
-                if response == "*illegal format#":
-                    logger.error("Command %s illegal format", _command)
-                    raise IllegalFormatError(command, action)
-
-                if response == "*unsupported item#":
-                    logger.error("Command %s unsupported item", _command)
-                    raise UnsupportedItemError(command, action)
-
-                if response == "*block item#":
-                    logger.info("Command %s blocked item", _command)
-                    raise BlockedItemError(command, action)
-
-                logger.debug("Raw response: '%s'", response)
-                matches = self._response_re.match(response)
-                if not matches:
-                    logger.error("Unexpected response format, response: %s", response)
-                    raise InvallidResponseError(command, action, response)
-                response = matches.group(2)
-                logger.debug("Processed response: %s", response)
-
-                return response
+                return self._parse_response(command, action, _command, response)
         except serial.SerialException as ex:
             logger.exception(
                 "Problem communicating with %s, reason: %s", self._serial_port, ex
@@ -376,6 +353,36 @@ class BenQProjector:
             return None
         finally:
             self._busy = False
+
+    def _parse_response(self, command, action, _command, response):
+        response = response.lower()
+        logger.debug("LC Response: %s", response)
+
+        if response in ["*illegal format#", "illegal format"]:
+            logger.error("Command %s illegal format", _command)
+            raise IllegalFormatError(command, action)
+
+        if response in ["*unsupported item#", "unsupported item"]:
+            logger.error("Command %s unsupported item", _command)
+            raise UnsupportedItemError(command, action)
+
+        if response in ["*block item#", "block item"]:
+            logger.info("Command %s blocked item", _command)
+            raise BlockedItemError(command, action)
+
+        logger.debug("Raw response: '%s'", response)
+        matches = self._response_re.match(response)
+        if not matches:
+            logger.error("Unexpected response format, response: %s", response)
+            raise InvallidResponseError(command, action, response)
+        response: str = matches.group(2)
+
+        # Strip any spaces from the response
+        response = response.strip()
+
+        logger.debug("Processed response: %s", response)
+
+        return response
 
     def send_command(self, command: str, action: str = "?") -> str:
         """
