@@ -22,6 +22,7 @@ class Test(unittest.TestCase):
 
     def setUp(self):
         self._projector = BenQProjector(serial_port, 115200)
+        # Don't need to connect to the projector to test parsing responses
 
     def test_parse_response_w1100_ltim(self):
         # The W1100 ltim command does include spaces and does not end with #
@@ -29,6 +30,20 @@ class Test(unittest.TestCase):
             "ltim", "?", "*ltim=?#", "*ltim= 1383"
         )
         self.assertEqual("1383", response)
+
+    def test_parse_response_w1100_modelname(self):
+        # The W1110 modelname command returns an lowercase response #
+        response = self._projector._parse_response(
+            "modelname", "?", "*modelname=?#", "*modelname=W1100#"
+        )
+        self.assertEqual("w1100", response)
+
+    def test_parse_response_w1110_modelname(self):
+        # The W1110 modelname command returns an uppercase response #
+        response = self._projector._parse_response(
+            "modelname", "?", "*modelname=?#", "*MODELNAME=W1110#"
+        )
+        self.assertEqual("w1110", response)
 
 
 if __name__ == "__main__":
