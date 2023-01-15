@@ -80,6 +80,9 @@ if __name__ == "__main__":
                 pass
         elif args.action == "examine":
             _LOGGER.info("Model: %s", projector.model)
+            if projector.power_status == BenQProjector.POWERSTATUS_OFF:
+                _LOGGER.error("Projector needs to be on to examine it's features.")
+                sys.exit(0)
 
             supported_commands = projector.detect_commands()
             time.sleep(2)  # Give the projector some time to settle
