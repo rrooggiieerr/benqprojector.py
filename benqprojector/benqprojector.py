@@ -273,20 +273,8 @@ class BenQProjector:
             self._connection.reset_input_buffer()
             self._connection.reset_output_buffer()
 
-            # Clean input buffer
-            self._connection.write(b"\r")
-            self._connection.flush()
-            response = self._connection.read(1)
-            if response != b">":
-                logger.error("Unexpected response: %s", response)
-                # Try to clean the input buffer by reading everything
-                response = self._connection.read(1)
-                logger.error("Unexpected response: %s", response)
-
             _command = f"*{command}={action}#"
-            logger.debug("command %s", _command)
-            self._connection.write(f"{_command}\r".encode("ascii"))
-            self._connection.flush()
+            self.send_raw_command(_command)
 
             empty_line_count = 0
             echo_received = None
@@ -354,6 +342,24 @@ class BenQProjector:
         finally:
             self._busy = False
 
+    def _send_raw_command(self, command: str) -> str:
+        """
+        Send a raw command to the BenQ projector.
+        """
+        # Clean input buffer
+        self._connection.write(b"\r")
+        self._connection.flush()
+        response = self._connection.read(1)
+        if response != b">":
+            logger.error("Unexpected response: %s", response)
+            # Try to clean the input buffer by reading everything
+            response = self._connection.read(1)
+            logger.error("Unexpected response: %s", response)
+
+        logger.debug("command %s", command)
+        self._connection.write(f"{command}\r".encode("ascii"))
+        self._connection.flush()
+
     def _parse_response(self, command, action, _command, response):
         response = response.lower()
         logger.debug("LC Response: %s", response)
@@ -396,6 +402,16 @@ class BenQProjector:
             pass
 
         return response
+
+    def send_raw_command(self, command: str) -> str:
+        """
+        Send a raw command to the BenQ projector.
+        """
+        self._send_raw_command(command)
+        
+        # Read and log the response
+        while (response := self._connection.readline()):
+            logger.debug(response)
 
     def detect_commands(self):
         """
