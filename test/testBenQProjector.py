@@ -23,6 +23,7 @@ class Test(unittest.TestCase):
     def setUp(self):
         self._projector = BenQProjector(serial_port, 115200)
         self._projector.connect()
+        self._projector.update()
 
     def tearDown(self):
         self._projector.disconnect()
