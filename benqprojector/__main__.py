@@ -13,6 +13,8 @@ from serial.serialutil import SerialException
 from benqprojector import BenQProjector
 
 _LOGGER = logging.getLogger(__name__)
+
+
 if __name__ == "__main__":
     # Read command line arguments
     argparser = argparse.ArgumentParser()
@@ -38,6 +40,8 @@ if __name__ == "__main__":
 
     try:
         if args.action == "status":
+            projector.update()
+
             _LOGGER.info("Model: %s", projector.model)
             _LOGGER.info("Position: %s", projector.projector_position)
             if projector.power_status == BenQProjector.POWERSTATUS_OFF:
