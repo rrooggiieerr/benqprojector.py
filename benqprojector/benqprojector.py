@@ -114,7 +114,7 @@ class BenQProjector:
     sharpness = None
 
     # Compile regular expression to match the command response.
-    _response_re = re.compile(r"^\*?([^=]*)=(.*)#$")
+    _response_re = re.compile(r"^\*?([^=]*)=(.*)#?$")
 
     # Some projectors do not echo the given command, the code tries to detect if this is the case
     _expect_command_echo = True
