@@ -50,6 +50,8 @@ class InvallidResponseError(BenQProjectorError):
         super().__init__(command, action)
         self.response = response
 
+RESPONSE_RE_STRICT = r"^\*([^=]*)=([^#]*)#$"
+RESPONSE_RE_LOSE = r"^\*?([^=]*)=([^#]*)#?$"
 
 class BenQProjector:
     """
@@ -114,7 +116,7 @@ class BenQProjector:
     sharpness = None
 
     # Compile regular expression to match the command response.
-    _response_re = re.compile(r"^\*?([^=]*)=([^#]*)#?$")
+    _response_re = None
 
     # Some projectors do not echo the given command, the code tries to detect if this is the case
     _expect_command_echo = True
@@ -124,6 +126,7 @@ class BenQProjector:
         serial_port: str,  # The serial port where the RS-485 interface and
         # screen is connected to.
         baud_rate: int,
+        strict_validation: bool = False
     ):
         """
         Initialises the BenQProjector object.
@@ -133,6 +136,11 @@ class BenQProjector:
 
         self._serial_port = serial_port
         self._baud_rate = baud_rate
+        
+        if strict_validation:
+            self._response_re = re.compile(RESPONSE_RE_STRICT)
+        else:
+            self._response_re = re.compile(RESPONSE_RE_LOSE)
 
     def _connect(self) -> bool:
         if self._connection is None:
