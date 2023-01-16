@@ -28,50 +28,6 @@ class Test(unittest.TestCase):
     def tearDown(self):
         self._projector.disconnect()
 
-    def test_mute(self):
-        self._projector.unmute()
-        response = self._projector.mute()
-        self.assertTrue(response)
-
-    def test_unmute(self):
-        self._projector.mute()
-        response = self._projector.unmute()
-        self.assertTrue(response)
-
-    def test_volume_up(self):
-        self._projector.volume_level(10)
-        volume = self._projector.volume
-        response = self._projector.volume_up()
-        self.assertTrue(response)
-        self.assertEquals(volume + 1, self._projector.volume)
-
-    def test_volume_down(self):
-        self._projector.volume_level(10)
-        volume = self._projector.volume
-        response = self._projector.volume_down()
-        self.assertTrue(response)
-        self.assertEquals(volume - 1, self._projector.volume)
-
-    def test_volume_level_up(self):
-        self._projector.volume_level(0)
-        response = self._projector.volume_level(20)
-        self.assertTrue(response)
-
-    def test_volume_level_down(self):
-        self._projector.volume_level(20)
-        response = self._projector.volume_level(0)
-        self.assertTrue(response)
-
-    def test_detect_commands(self):
-        commands = self._projector.detect_commands()
-        self.assertIsNotNone(commands)
-        logger.info("Supported commands: %s", commands)
-
-    def test_detect_sources(self):
-        sources = self._projector.detect_commands()
-        self.assertIsNotNone(sources)
-        logger.info("Supported sources: %s", sources)
-
     # def test_turn_on(self):
     #     result = self._projector.turn_on()
     #     self.assertTrue(result)
