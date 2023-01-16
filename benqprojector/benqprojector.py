@@ -10,6 +10,7 @@ import importlib.resources
 import json
 import logging
 import re
+import sys
 import time
 
 import serial
@@ -141,11 +142,16 @@ class BenQProjector:
 
         self._serial_port = serial_port
         self._baud_rate = baud_rate
-        
+
         if strict_validation:
             self._response_re = re.compile(RESPONSE_RE_STRICT)
         else:
             self._response_re = re.compile(RESPONSE_RE_LOSE)
+
+        self._interactive = False
+        if sys.stdin and sys.stdin.isatty() and logging.root.level == logging.INFO:
+            # running interactively
+            self._interactive = True
 
     def _connect(self) -> bool:
         if self._connection is None:
@@ -373,7 +379,7 @@ class BenQProjector:
             raise UnsupportedItemError(command, action)
 
         if response in ["*block item#", "block item"]:
-            logger.info("Command %s blocked item", _command)
+            logger.error("Command %s blocked item", _command)
             raise BlockedItemError(command, action)
 
         logger.debug("Raw response: '%s'", response)
@@ -416,7 +422,7 @@ class BenQProjector:
 
         try:
             self._send_raw_command(command)
-            
+
             # Read and log the response
             while (_response := self._connection.readline()):
                 response = _response.decode()
@@ -430,7 +436,7 @@ class BenQProjector:
             return None
         finally:
             self._busy = False
-        
+
         return response
 
     def detect_commands(self):
@@ -439,31 +445,61 @@ class BenQProjector:
 
         This is done by trying out all know commands.
         """
-        logger.info("Detecting supported commands")
+        if self._interactive:
+            print(f"Supported commands:", end="", flush=True)
+        else:
+            logger.info("Detecting supported commands")
+
         # Empty the current list of supported commands.
         self._supported_commands = None
         supported_commands = []
+        ignore_commands = [
+            "menu",
+            "up",
+            "down",
+            "left",
+            "right",
+            "enter",
+            "zoomi",
+            "zoomo",
+            "auto",
+            "focus",
+            "error",
+        ]
         # Loop trough all known commands and test if a response is given.
         for command in self.projector_config_all.get("commands"):
-            try:
-                response = self._send_command(command)
-                if response is not None:
-                    # A response is given, the command is supported.
-                    logger.info("Command %s supported", command)
-                    supported_commands.append(command)
-            except BlockedItemError:
-                supported_commands.append(command)
-            except BenQProjectorError:
-                pass
-            finally:
-                # Give the projector some time to process command
-                self._sleep(0.2)
+            if command not in ignore_commands:
+                try:
+                    try:
+                        response = self._send_command(command)
+                        if response is not None:
+                            supported_commands.append(command)
+                        else:
+                            command = None
+                    except BlockedItemError:
+                        supported_commands.append(command)
+                        command = f"{command}?"
+
+                    if command:
+                        # A response is given, the command is supported.
+                        if self._interactive:
+                            print(f" {command}", end="", flush=True)
+                        else:
+                            logger.info("Command %s supported", command)
+                except BenQProjectorError:
+                    pass
+                finally:
+                    # Give the projector some time to process command
+                    self._sleep(0.2)
         # Set the list of known commands.
         self._supported_commands = supported_commands
 
+        if self._interactive:
+            print()
+
         return self._supported_commands
 
-    def _detect_modes(self, command, all_modes):
+    def _detect_modes(self, description, command, all_modes):
         """
         Detect which modes are supported by the projector.
 
@@ -472,10 +508,15 @@ class BenQProjector:
         if not self.supports_command(command):
             return []
 
-        logger.debug("Detecting supported modes for %s", command)
+        if self._interactive:
+            print(f"Supported {description}:", end="", flush=True)
+        else:
+            logger.info("Detecting supported video sources")
+
         # Store current mode
         current_mode = self.send_command(command)
-        logger.info("Current mode for %s: %s", command, current_mode)
+        if not self._interactive:
+            logger.info("Current %s: %s", description, current_mode)
         if current_mode is None:
             return []
 
@@ -483,13 +524,22 @@ class BenQProjector:
         # Loop trough all known modes and test if a response is given.
         for mode in all_modes:
             try:
-                response = self._send_command(command, mode)
-                if response is not None:
-                    # A response is given, the mode is supported.
-                    logger.debug("Mode %s supported", mode)
+                try:
+                    response = self._send_command(command, mode)
+                    if response is not None:
+                        supported_modes.append(mode)
+                    else:
+                        mode = None
+                except BlockedItemError:
                     supported_modes.append(mode)
-            except BlockedItemError:
-                supported_modes.append(mode)
+                    mode = f"{mode}?"
+
+                if mode:
+                    # A response is given, the mode is supported.
+                    if self._interactive:
+                        print(f" {mode}", end="", flush=True)
+                    else:
+                        logger.debug("Mode %s supported", mode)
             except BenQProjectorError:
                 pass
             finally:
@@ -499,15 +549,17 @@ class BenQProjector:
         # Revert mode back to current mode
         self.send_command(command, current_mode)
 
+        if self._interactive:
+            print()
+
         return supported_modes
 
     def detect_video_sources(self):
         """
         Detect which video sources are supported by the projector.
         """
-        logger.info("Detecting supported video sources")
         self.video_sources = self._detect_modes(
-            "sour", self.projector_config_all.get("sources")
+            "video sources", "sour", self.projector_config_all.get("sources")
         )
         return self.video_sources
 
@@ -515,9 +567,8 @@ class BenQProjector:
         """
         Detect which audio sources are supported by the projector.
         """
-        logger.info("Detecting supported audio sources")
         self.audio_sources = self._detect_modes(
-            "audiosour", self.projector_config_all.get("audio_sources")
+            "audio sources", "audiosour", self.projector_config_all.get("audio_sources")
         )
         return self.audio_sources
 
@@ -525,9 +576,8 @@ class BenQProjector:
         """
         Detect which picture modes are supported by the projector.
         """
-        logger.info("Detecting supported picture modes")
         self.picture_modes = self._detect_modes(
-            "appmod", self.projector_config_all.get("picture_modes")
+            "picture modes", "appmod", self.projector_config_all.get("picture_modes")
         )
         return self.picture_modes
 
@@ -535,9 +585,10 @@ class BenQProjector:
         """
         Detect which color temperatures are supported by the projector.
         """
-        logger.info("Detecting supported color temperatures")
         self.color_temperatures = self._detect_modes(
-            "ct", self.projector_config_all.get("color_temperatures")
+            "color temperatures",
+            "ct",
+            self.projector_config_all.get("color_temperatures"),
         )
         return self.color_temperatures
 
@@ -545,9 +596,8 @@ class BenQProjector:
         """
         Detect which aspect ratios are supported by the projector.
         """
-        logger.info("Detecting supported aspec ratios")
         self.aspect_ratios = self._detect_modes(
-            "asp", self.projector_config_all.get("aspect_ratios")
+            "aspect ratios", "asp", self.projector_config_all.get("aspect_ratios")
         )
         return self.aspect_ratios
 
@@ -555,9 +605,10 @@ class BenQProjector:
         """
         Detect which projector positions are supported by the projector.
         """
-        logger.info("Detecting supported projector positions")
         self.projector_positions = self._detect_modes(
-            "pp", self.projector_config_all.get("projector_positions")
+            "projector positions",
+            "pp",
+            self.projector_config_all.get("projector_positions"),
         )
         return self.projector_positions
 
@@ -565,9 +616,8 @@ class BenQProjector:
         """
         Detect which lamp modes are supported by the projector.
         """
-        logger.info("Detecting supported lamp modes")
         self.lamp_modes = self._detect_modes(
-            "lampm", self.projector_config_all.get("lamp_modes")
+            "lamp modes", "lampm", self.projector_config_all.get("lamp_modes")
         )
         return self.lamp_modes
 
@@ -575,11 +625,37 @@ class BenQProjector:
         """
         Detect which 3d modes are supported by the projector.
         """
-        logger.info("Detecting supported 3d modes")
         self.threed_modes = self._detect_modes(
-            "3d", self.projector_config_all.get("3d_modes")
+            "3d modes", "3d", self.projector_config_all.get("3d_modes")
         )
         return self.threed_modes
+
+    def detect_projector_features(self):
+        if self.power_status == BenQProjector.POWERSTATUS_OFF:
+            logger.error("Projector needs to be on to examine it's features.")
+            return None
+
+        config = {}
+
+        config["commands"] = self.detect_commands()
+        time.sleep(2)  # Give the projector some time to settle
+        config["video_sources"] = self.detect_video_sources()
+        time.sleep(2)
+        config["audio_sources"] = self.detect_audio_sources()
+        time.sleep(2)
+        config["picture_modes"] = self.detect_picture_modes()
+        time.sleep(2)
+        config["color_temperatures"] = self.detect_color_temperatures()
+        time.sleep(2)
+        config["aspect_ratios"] = self.detect_aspect_ratios()
+        time.sleep(2)
+        config["projector_positions"] = self.detect_projector_positions()
+        time.sleep(2)
+        config["lamp_modes"] = self.detect_lamp_modes()
+        time.sleep(2)
+        config["3d_modes"] = self.detect_3d_modes()
+
+        return config
 
     def update_power(self) -> bool:
         """Update the current power state."""
