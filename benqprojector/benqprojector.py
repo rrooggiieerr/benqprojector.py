@@ -6,13 +6,13 @@ Created on 27 Nov 2022
 @author: Rogier van Staveren
 """
 import asyncio
+import importlib.resources
+import json
 import logging
 import re
 import time
 
 import serial
-
-from benqprojector.config import PROJECTOR_CONFIGS
 
 logger = logging.getLogger(__name__)
 
@@ -55,6 +55,7 @@ class InvallidResponseError(BenQProjectorError):
         super().__init__(command, action)
         self.response = response
 
+
 class BenQProjector:
     """
     BenQProjector class for controlling BenQ projectors.
@@ -70,6 +71,8 @@ class BenQProjector:
     unique_id = None
 
     # Supported commands and modes
+    projector_config_all = None
+    projector_config = None
     _supported_commands = None
     video_sources = None
     audio_sources = None
@@ -181,42 +184,29 @@ class BenQProjector:
         # Is projector powering down?
         self.model = model
 
-        self._supported_commands = PROJECTOR_CONFIGS.get(model, {}).get(
-            "commands", PROJECTOR_CONFIGS.get("all").get("commands")
-        )
+        # Fall back to generic config when no configuration for model can be found
+        with importlib.resources.open_text("benqprojector.configs", "all.json") as file:
+            self.projector_config_all = json.load(file)
+        try:
+            with importlib.resources.open_text(
+                "benqprojector.configs", f"{model}.json"
+            ) as file:
+                self.projector_config = json.load(file)
+        except FileNotFoundError:
+            self.projector_config = self.projector_config_all
 
-        self.video_sources = PROJECTOR_CONFIGS.get(model, {}).get(
-            "sources", PROJECTOR_CONFIGS.get("all").get("sources")
-        )
-        self.audio_sources = PROJECTOR_CONFIGS.get(model, {}).get(
-            "audio_sources", PROJECTOR_CONFIGS.get("all").get("audio_sources")
-        )
-        self.picture_modes = PROJECTOR_CONFIGS.get(model, {}).get(
-            "picture_modes", PROJECTOR_CONFIGS.get("all").get("picture_modes")
-        )
-        self.color_temperatures = PROJECTOR_CONFIGS.get(model, {}).get(
-            "color_temperatures", PROJECTOR_CONFIGS.get("all").get("color_temperatures")
-        )
-        self.aspect_ratios = PROJECTOR_CONFIGS.get(model, {}).get(
-            "aspect_ratios", PROJECTOR_CONFIGS.get("all").get("aspect_ratios")
-        )
-        self.projector_positions = PROJECTOR_CONFIGS.get(model, {}).get(
-            "projector_positions",
-            PROJECTOR_CONFIGS.get("all").get("projector_positions"),
-        )
-        self.lamp_modes = PROJECTOR_CONFIGS.get(model, {}).get(
-            "lamp_modes", PROJECTOR_CONFIGS.get("all").get("lamp_modes")
-        )
-        self.threed_modes = PROJECTOR_CONFIGS.get(model, {}).get(
-            "3d_modes", PROJECTOR_CONFIGS.get("all").get("3d_modes")
-        )
+        self._supported_commands = self.projector_config.get("commands")
+        self.video_sources = self.projector_config.get("sources")
+        self.audio_sources = self.projector_config.get("audio_sources")
+        self.picture_modes = self.projector_config.get("picture_modes")
+        self.color_temperatures = self.projector_config.get("color_temperatures")
+        self.aspect_ratios = self.projector_config.get("aspect_ratios")
+        self.projector_positions = (self.projector_config.get("projector_positions"),)
+        self.lamp_modes = self.projector_config.get("lamp_modes")
+        self.threed_modes = self.projector_config.get("3d_modes")
 
-        self._poweron_time = PROJECTOR_CONFIGS.get(model, {}).get(
-            "poweron_time", PROJECTOR_CONFIGS.get("all").get("poweron_time")
-        )
-        self._poweroff_time = PROJECTOR_CONFIGS.get(model, {}).get(
-            "poweroff_time", PROJECTOR_CONFIGS.get("all").get("poweroff_time")
-        )
+        self._poweron_time = self.projector_config.get("poweron_time")
+        self._poweroff_time = self.projector_config.get("poweroff_time")
 
         mac = None
         if self.supports_command("macaddr"):
@@ -454,7 +444,7 @@ class BenQProjector:
         self._supported_commands = None
         supported_commands = []
         # Loop trough all known commands and test if a response is given.
-        for command in PROJECTOR_CONFIGS["all"]["commands"]:
+        for command in self.projector_config_all.get("commands"):
             try:
                 response = self._send_command(command)
                 if response is not None:
@@ -517,7 +507,7 @@ class BenQProjector:
         """
         logger.info("Detecting supported video sources")
         self.video_sources = self._detect_modes(
-            "sour", PROJECTOR_CONFIGS["all"]["sources"]
+            "sour", self.projector_config_all.get("sources")
         )
         return self.video_sources
 
@@ -527,7 +517,7 @@ class BenQProjector:
         """
         logger.info("Detecting supported audio sources")
         self.audio_sources = self._detect_modes(
-            "audiosour", PROJECTOR_CONFIGS["all"]["audio_sources"]
+            "audiosour", self.projector_config_all.get("audio_sources")
         )
         return self.audio_sources
 
@@ -537,7 +527,7 @@ class BenQProjector:
         """
         logger.info("Detecting supported picture modes")
         self.picture_modes = self._detect_modes(
-            "appmod", PROJECTOR_CONFIGS["all"]["picture_modes"]
+            "appmod", self.projector_config_all.get("picture_modes")
         )
         return self.picture_modes
 
@@ -547,7 +537,7 @@ class BenQProjector:
         """
         logger.info("Detecting supported color temperatures")
         self.color_temperatures = self._detect_modes(
-            "ct", PROJECTOR_CONFIGS["all"]["color_temperatures"]
+            "ct", self.projector_config_all.get("color_temperatures")
         )
         return self.color_temperatures
 
@@ -557,7 +547,7 @@ class BenQProjector:
         """
         logger.info("Detecting supported aspec ratios")
         self.aspect_ratios = self._detect_modes(
-            "asp", PROJECTOR_CONFIGS["all"]["aspect_ratios"]
+            "asp", self.projector_config_all.get("aspect_ratios")
         )
         return self.aspect_ratios
 
@@ -567,7 +557,7 @@ class BenQProjector:
         """
         logger.info("Detecting supported projector positions")
         self.projector_positions = self._detect_modes(
-            "pp", PROJECTOR_CONFIGS["all"]["projector_positions"]
+            "pp", self.projector_config_all.get("projector_positions")
         )
         return self.projector_positions
 
@@ -577,7 +567,7 @@ class BenQProjector:
         """
         logger.info("Detecting supported lamp modes")
         self.lamp_modes = self._detect_modes(
-            "lampm", PROJECTOR_CONFIGS["all"]["lamp_modes"]
+            "lampm", self.projector_config_all.get("lamp_modes")
         )
         return self.lamp_modes
 
@@ -587,7 +577,7 @@ class BenQProjector:
         """
         logger.info("Detecting supported 3d modes")
         self.threed_modes = self._detect_modes(
-            "3d", PROJECTOR_CONFIGS["all"]["3d_modes"]
+            "3d", self.projector_config_all.get("3d_modes")
         )
         return self.threed_modes
 
