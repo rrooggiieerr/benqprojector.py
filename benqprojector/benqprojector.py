@@ -34,23 +34,43 @@ class BenQProjectorError(Exception):
 
 
 class IllegalFormatError(BenQProjectorError):
-    """Illegal command format error."""
+    """
+    Illegal command format error.
+    
+    If a command format is illegal, it will echo Illegal format.
+    """
 
 
 class EmptyResponseError(BenQProjectorError):
-    """Empty response error."""
+    """
+    Empty response error.
+    
+    If the response is empty.
+    """
 
 
 class UnsupportedItemError(BenQProjectorError):
-    """Unsupported item error."""
+    """
+    Unsupported item error.
+    
+    If a command with correct format is not valid for the projector model, it will echo Unsupported item.
+    """
 
 
 class BlockedItemError(BenQProjectorError):
-    """Blocked item error."""
+    """
+    Blocked item error.
+    
+    If a command with correct format cannot be executed under certain condition, it will echo Block item.
+    """
 
 
 class InvallidResponseError(BenQProjectorError):
-    """Empty response error."""
+    """
+    Invalid response error.
+    
+    If the response format does not match the expected format.
+    """
 
     def __init__(self, command=None, action=None, response=None):
         super().__init__(command, action)
