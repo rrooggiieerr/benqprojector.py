@@ -376,9 +376,6 @@ class BenQProjector:
                 break
 
             logger.error("Unexpected response: %s", response)
-            # Try to clean the input buffer by reading everything
-            response = self._connection.read(1)
-            logger.error("Unexpected response: %s", response)
 
     def _send_raw_command(self, command: str) -> str:
         """
