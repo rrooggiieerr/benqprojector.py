@@ -276,9 +276,6 @@ class BenQProjector:
         response = None
 
         try:
-            self._connection.reset_input_buffer()
-            self._connection.reset_output_buffer()
-
             _command = f"*{command}={action}#"
             self._send_raw_command(_command)
 
@@ -347,19 +344,27 @@ class BenQProjector:
         finally:
             self._busy = False
 
-    def _send_raw_command(self, command: str) -> str:
-        """
-        Send a raw command to the BenQ projector.
-        """
+    def _wait_for_prompt(self):
         # Clean input buffer
+        self._connection.reset_input_buffer()
+        self._connection.reset_output_buffer()
+
         self._connection.write(b"\r")
         self._connection.flush()
-        response = self._connection.read(1)
-        if response != b">":
+        while response := self._connection.read(1):
+            if response == b">":
+                break
+
             logger.error("Unexpected response: %s", response)
             # Try to clean the input buffer by reading everything
             response = self._connection.read(1)
             logger.error("Unexpected response: %s", response)
+
+    def _send_raw_command(self, command: str) -> str:
+        """
+        Send a raw command to the BenQ projector.
+        """
+        self._wait_for_prompt()
 
         logger.debug("command %s", command)
         self._connection.write(f"{command}\r".encode("ascii"))
