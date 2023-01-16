@@ -318,7 +318,7 @@ PROJECTOR_CONFIGS = {
     },
 }
 
-BAUD_RATES = [2400, 4800, 9600, 14400, 19200, 38400, 57600, 115200]
+
 
 # POSITIONS = {
 #     "ft": "front_table",

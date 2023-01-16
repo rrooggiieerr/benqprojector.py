@@ -12,9 +12,14 @@ import time
 
 import serial
 
-from benqprojector.config import BAUD_RATES, PROJECTOR_CONFIGS
+from benqprojector.config import PROJECTOR_CONFIGS
 
 logger = logging.getLogger(__name__)
+
+BAUD_RATES = [2400, 4800, 9600, 14400, 19200, 38400, 57600, 115200]
+
+RESPONSE_RE_STRICT = r"^\*([^=]*)=([^#]*)#$"
+RESPONSE_RE_LOSE = r"^\*?([^=]*)=([^#]*)#?$"
 
 _SERIAL_TIMEOUT = 0.05
 
@@ -49,9 +54,6 @@ class InvallidResponseError(BenQProjectorError):
     def __init__(self, command=None, action=None, response=None):
         super().__init__(command, action)
         self.response = response
-
-RESPONSE_RE_STRICT = r"^\*([^=]*)=([^#]*)#$"
-RESPONSE_RE_LOSE = r"^\*?([^=]*)=([^#]*)#?$"
 
 class BenQProjector:
     """
