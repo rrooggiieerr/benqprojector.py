@@ -32,6 +32,22 @@ class Test(unittest.TestCase):
         time.sleep(0.2)
         self._projector.disconnect()
 
+    def test_menu_off_status(self):
+        # Fails on w1110 but should work on other projectors
+        response = self._projector.send_command("menu", "?")
+        time.sleep(0.2)
+        self.assertIsNotNone(response)
+        self.assertEqual("off", response)
+
+    def test_menu_on_status(self):
+        # Fails on w1110 but should work on other projectors
+        self._projector.send_command("menu", "on")
+        time.sleep(0.2)
+        response = self._projector.send_command("menu", "?")
+        time.sleep(0.2)
+        self.assertIsNotNone(response)
+        self.assertEqual("on", response)
+
     def test_menu_on(self):
         response = self._projector.send_command("menu", "on")
         self.assertIsNotNone(response)
