@@ -371,15 +371,18 @@ class BenQProjector:
         logger.debug("LC Response: %s", response)
 
         if response in ["*illegal format#", "illegal format"]:
-            logger.error("Command %s illegal format", _command)
+            if not self._interactive:
+                logger.error("Command %s illegal format", _command)
             raise IllegalFormatError(command, action)
 
         if response in ["*unsupported item#", "unsupported item"]:
-            logger.error("Command %s unsupported item", _command)
+            if not self._interactive:
+                logger.error("Command %s unsupported item", _command)
             raise UnsupportedItemError(command, action)
 
         if response in ["*block item#", "block item"]:
-            logger.error("Command %s blocked item", _command)
+            if not self._interactive:
+                logger.error("Command %s blocked item", _command)
             raise BlockedItemError(command, action)
 
         logger.debug("Raw response: '%s'", response)
