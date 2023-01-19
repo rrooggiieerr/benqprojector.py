@@ -7,4 +7,4 @@ Created on 27 Nov 2022
 """
 __version__ = "0.0.10"
 
-from benqprojector.benqprojector import BenQProjector
+from benqprojector.benqprojector import BAUD_RATES, BenQProjector
