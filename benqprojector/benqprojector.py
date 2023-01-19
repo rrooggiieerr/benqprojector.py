@@ -205,20 +205,36 @@ class BenQProjector:
         if not self._connect():
             return False
 
-        model = self._send_command("modelname")
-        assert model is not None, "Failed to retrieve projector model"
-        # Is projector powering down?
+        model = None
+        try:
+            model = self._send_command("modelname")
+            assert model is not None, "Failed to retrieve projector model"
+        except IllegalFormatError:
+            # W1000 does not seem to return project model, but gives an illegal
+            # format error. Maybe there are other models with the same problem?
+            logger.error("Unable to retrieve projector model")
+        except BlockedItemError:
+            # Is projector powering down?
+            logger.error(
+                "Unable to retrieve projector model, is projector powering down?"
+            )
+            raise
         self.model = model
 
-        # Fall back to generic config when no configuration for model can be found
         with importlib.resources.open_text("benqprojector.configs", "all.json") as file:
             self.projector_config_all = json.load(file)
-        try:
-            with importlib.resources.open_text(
-                "benqprojector.configs", f"{model}.json"
-            ) as file:
-                self.projector_config = json.load(file)
-        except FileNotFoundError:
+
+        if self.model:
+            try:
+                with importlib.resources.open_text(
+                    "benqprojector.configs", f"{self.model}.json"
+                ) as file:
+                    self.projector_config = json.load(file)
+            except FileNotFoundError:
+                pass
+
+        # Fall back to generic config when no configuration for model can be found
+        if not self.projector_config:
             self.projector_config = self.projector_config_all
 
         self._supported_commands = self.projector_config.get("commands")
