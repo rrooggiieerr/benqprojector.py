@@ -36,7 +36,7 @@ class BenQProjectorError(Exception):
 class IllegalFormatError(BenQProjectorError):
     """
     Illegal command format error.
-    
+
     If a command format is illegal, it will echo Illegal format.
     """
 
@@ -44,7 +44,7 @@ class IllegalFormatError(BenQProjectorError):
 class EmptyResponseError(BenQProjectorError):
     """
     Empty response error.
-    
+
     If the response is empty.
     """
 
@@ -52,7 +52,7 @@ class EmptyResponseError(BenQProjectorError):
 class UnsupportedItemError(BenQProjectorError):
     """
     Unsupported item error.
-    
+
     If a command with correct format is not valid for the projector model, it will echo Unsupported item.
     """
 
@@ -60,7 +60,7 @@ class UnsupportedItemError(BenQProjectorError):
 class BlockedItemError(BenQProjectorError):
     """
     Blocked item error.
-    
+
     If a command with correct format cannot be executed under certain condition, it will echo Block item.
     """
 
@@ -68,7 +68,7 @@ class BlockedItemError(BenQProjectorError):
 class InvallidResponseError(BenQProjectorError):
     """
     Invalid response error.
-    
+
     If the response format does not match the expected format.
     """
 
@@ -152,7 +152,7 @@ class BenQProjector:
         serial_port: str,  # The serial port where the RS-485 interface and
         # screen is connected to.
         baud_rate: int,
-        strict_validation: bool = False
+        strict_validation: bool = False,
     ):
         """
         Initialises the BenQProjector object.
@@ -465,7 +465,7 @@ class BenQProjector:
             self._send_raw_command(command)
 
             # Read and log the response
-            while (_response := self._connection.readline()):
+            while _response := self._connection.readline():
                 response = _response.decode()
                 # Cleanup response
                 response = response.strip(" \n\r\x00")

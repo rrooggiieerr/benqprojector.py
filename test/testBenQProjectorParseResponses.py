@@ -26,9 +26,7 @@ class Test(unittest.TestCase):
 
     def test_parse_response_w1100_bri(self):
         # The W1100 ltim command does include spaces and does not end with #
-        response = self._projector._parse_response(
-            "bri", "?", "*bri=?#", "*bri= 51"
-        )
+        response = self._projector._parse_response("bri", "?", "*bri=?#", "*bri= 51")
         self.assertEqual("51", response)
 
     def test_parse_response_w1100_ltim(self):

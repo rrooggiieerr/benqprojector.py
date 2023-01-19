@@ -92,6 +92,7 @@ class Test(unittest.TestCase):
         self.assertIsNotNone(response)
         self.assertEqual("*right#", response.lower())
 
+
 if __name__ == "__main__":
     # import sys;sys.argv = ['', 'Test.testName']
     unittest.main()

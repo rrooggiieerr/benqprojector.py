@@ -31,6 +31,7 @@ class Test(unittest.TestCase):
         response = self._projector.detect_commands()
         self.assertIsNotNone(response)
 
+
 if __name__ == "__main__":
     # import sys;sys.argv = ['', 'Test.testName']
     unittest.main()
