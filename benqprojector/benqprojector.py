@@ -701,6 +701,14 @@ class BenQProjector:
     def update_power(self) -> bool:
         """Update the current power state."""
         response = self.send_command("pow")
+        if response == None:
+            if self.power_status == self.POWERSTATUS_POWERINGON:
+                logger.debug("Projector still powering on")
+                return True
+            elif self.power_status == self.POWERSTATUS_POWERINGOFF:
+                logger.debug("Projector still powering off")
+                return True
+
         if response == "off":
             if (
                 self.power_status == self.POWERSTATUS_POWERINGOFF
