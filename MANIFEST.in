@@ -1,0 +1,2 @@
+include benqprojector/*
+include benqprojector/configs/*
