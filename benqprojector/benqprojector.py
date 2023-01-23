@@ -12,6 +12,7 @@ import logging
 import re
 import sys
 import time
+from datetime import datetime
 
 import serial
 
@@ -380,18 +381,25 @@ class BenQProjector:
         finally:
             self._busy = False
 
-    def _wait_for_prompt(self):
+    def _wait_for_prompt(self) -> bool:
         # Clean input buffer
         self._connection.reset_input_buffer()
         self._connection.reset_output_buffer()
 
-        self._connection.write(b"\r")
-        self._connection.flush()
-        while response := self._connection.read(1):
-            if response == b">":
-                break
-
-            logger.error("Unexpected response: %s", response)
+        start_time = datetime.now()
+        while (datetime.now() - start_time).total_seconds() < 1:
+            response = self._connection.read(1)
+            if response == b"":
+                self._connection.write(b"\r")
+                self._connection.flush()
+            elif response == b">":
+                return True
+            else:
+                logger.error("Unexpected response: %s", response)
+        else:
+            raise TimeoutError("Timeout while waiting for prompt")
+        
+        return False
 
     def _send_raw_command(self, command: str) -> str:
         """
