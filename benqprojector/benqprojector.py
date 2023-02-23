@@ -24,6 +24,7 @@ RESPONSE_RE_STRICT = r"^\*([^=]*)=([^#]*)#$"
 RESPONSE_RE_LOSE = r"^\*?([^=]*)=([^#]*)#?$"
 
 _SERIAL_TIMEOUT = 0.05
+_RESPONSE_TIMEOUT = 5.0
 
 
 class BenQProjectorError(Exception):
@@ -67,6 +68,17 @@ class BlockedItemError(BenQProjectorError):
 
 
 class InvallidResponseError(BenQProjectorError):
+    """
+    Invalid response error.
+
+    If the response format does not match the expected format.
+    """
+
+    def __init__(self, command=None, action=None, response=None):
+        super().__init__(command, action)
+        self.response = response
+
+class ResponseTimeoutError(BenQProjectorError):
     """
     Invalid response error.
 
@@ -282,7 +294,9 @@ class BenQProjector:
 
     def _sleep(self, seconds):
         try:
-            asyncio.get_running_loop()
+            loop = asyncio.get_running_loop()
+            logger.debug("Sleep %s seconds", seconds)
+            loop.sleep()
             # async def __sleep():
             #     await asyncio.sleep(seconds)
             # asyncio.run(__sleep())
@@ -332,11 +346,7 @@ class BenQProjector:
                     else:
                         raise EmptyResponseError(command, action)
                 else:
-                    response = self._connection.readline()
-                    response = response.decode()
-                    # Cleanup response
-                    response = response.strip(" \n\r\x00")
-                    logger.debug("Response: %s", response)
+                    response = self._read_response()
 
                     if response == "":
                         logger.debug("Empty line")
@@ -400,6 +410,24 @@ class BenQProjector:
             raise TimeoutError("Timeout while waiting for prompt")
         
         return False
+
+    def _read_response(self) -> str:
+        response = b""
+        last_response = datetime.now()
+        while (datetime.now() - last_response).total_seconds() < _RESPONSE_TIMEOUT:
+            _response = self._connection.readline()
+            if len(_response) > 0:
+                response += _response
+                if any(c in _response for c in [b"\n", b"\r", b"\x00"]):
+                    response = response.decode()
+                    # Cleanup response
+                    response = response.strip(" \n\r\x00")
+                    logger.debug("Response: %s", response)
+                    
+                    return response
+                last_response = datetime.now()
+
+        raise ResponseTimeoutError(response = response)
 
     def _send_raw_command(self, command: str) -> str:
         """
@@ -473,10 +501,7 @@ class BenQProjector:
             self._send_raw_command(command)
 
             # Read and log the response
-            while _response := self._connection.readline():
-                response = _response.decode()
-                # Cleanup response
-                response = response.strip(" \n\r\x00")
+            while _response := self._read_response():
                 logger.debug(response)
         except serial.SerialException as ex:
             logger.exception(
