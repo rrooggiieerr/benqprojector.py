@@ -25,6 +25,7 @@ RESPONSE_RE_LOSE = r"^\*?([^=]*)=([^#]*)#?$"
 
 _SERIAL_TIMEOUT = 0.05
 _RESPONSE_TIMEOUT = 5.0
+_BUSY_TIMEOUT = 1
 
 
 class BenQProjectorError(Exception):
@@ -78,6 +79,7 @@ class InvallidResponseError(BenQProjectorError):
         super().__init__(command, action)
         self.response = response
 
+
 class ResponseTimeoutError(BenQProjectorError):
     """
     Response timeout error.
@@ -89,6 +91,13 @@ class ResponseTimeoutError(BenQProjectorError):
         super().__init__(command, action)
         self.response = response
 
+
+class TooBusyError(BenQProjectorError):
+    """
+    Too busy error.
+    
+    If the serial connection is to busy with processing other commands. 
+    """
 
 class BenQProjector:
     """
@@ -319,9 +328,12 @@ class BenQProjector:
             logger.error("Connection not available")
             return None
 
-        while self._busy is True:
-            logger.info("Too busy for %s=%s", command, action)
-            self._sleep(0.1)
+        while self._busy:
+            if (datetime.now() - start_time).total_seconds() > _BUSY_TIMEOUT:
+                logger.error("Too busy to send %s=%s", command, action)
+                raise TooBusyError("Too busy to send to send a command")
+            logger.debug("Busy")
+            self._sleep(0.01)
         self._busy = True
 
         response = None
@@ -429,8 +441,8 @@ class BenQProjector:
 
             if (datetime.now() - last_response).total_seconds() > _RESPONSE_TIMEOUT:
                 logger.error("Timeout while waiting for response")
-                raise ResponseTimeoutError(response = response)
-                
+                raise ResponseTimeoutError("Timeout while waiting for response")
+
             logger.debug("Waiting for response")
             self._sleep(0.01)
 
@@ -495,9 +507,13 @@ class BenQProjector:
         """
         Send a raw command to the BenQ projector.
         """
-        while self._busy is True:
-            logger.info("Too busy for %s=%s", command)
-            self._sleep(0.1)
+        start_time = datetime.now()
+        while self._busy:
+            if (datetime.now() - start_time).total_seconds() > _BUSY_TIMEOUT:
+                logger.error("Too busy to send %s=%s", command, action)
+                raise TooBusyError("Too busy to send to send a command")
+            logger.debug("Busy")
+            self._sleep(0.01)
         self._busy = True
 
         response = None
