@@ -328,6 +328,7 @@ class BenQProjector:
             logger.error("Connection not available")
             return None
 
+        start_time = datetime.now()
         while self._busy:
             if (datetime.now() - start_time).total_seconds() > _BUSY_TIMEOUT:
                 logger.error("Too busy to send %s=%s", command, action)
@@ -510,7 +511,7 @@ class BenQProjector:
         start_time = datetime.now()
         while self._busy:
             if (datetime.now() - start_time).total_seconds() > _BUSY_TIMEOUT:
-                logger.error("Too busy to send %s=%s", command, action)
+                logger.error("Too busy to send %s", command)
                 raise TooBusyError("Too busy to send to send a command")
             logger.debug("Busy")
             self._sleep(0.01)
