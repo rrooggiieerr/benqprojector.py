@@ -80,9 +80,9 @@ class InvallidResponseError(BenQProjectorError):
 
 class ResponseTimeoutError(BenQProjectorError):
     """
-    Invalid response error.
+    Response timeout error.
 
-    If the response format does not match the expected format.
+    If the response takes to long to receive.
     """
 
     def __init__(self, command=None, action=None, response=None):
@@ -414,7 +414,7 @@ class BenQProjector:
     def _read_response(self) -> str:
         response = b""
         last_response = datetime.now()
-        while (datetime.now() - last_response).total_seconds() < _RESPONSE_TIMEOUT:
+        while True:
             _response = self._connection.readline()
             if len(_response) > 0:
                 response += _response
@@ -427,7 +427,12 @@ class BenQProjector:
                     return response
                 last_response = datetime.now()
 
-        raise ResponseTimeoutError(response = response)
+            if (datetime.now() - last_response).total_seconds() > _RESPONSE_TIMEOUT:
+                logger.error("Timeout while waiting for response")
+                raise ResponseTimeoutError(response = response)
+                
+            logger.debug("Waiting for response")
+            self._sleep(0.01)
 
     def _send_raw_command(self, command: str) -> str:
         """
