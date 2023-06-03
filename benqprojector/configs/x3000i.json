@@ -35,6 +35,6 @@
 	"menu_positions": ["center", "tl", "tr", "br", "bl"],
 	"lamp_modes": ["lnor", "eco", "seco", "custom"],
 	"3d_modes": ["off", "auto", "tb", "fs", "fp", "sbs", "da", "iv"],
-	"poweron_time": 100,
-	"poweroff_time": 100
+	"poweron_time": 12,
+	"poweroff_time": 10
 }
