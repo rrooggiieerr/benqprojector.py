@@ -248,8 +248,9 @@ class BenQProjector:
 
         if self.model:
             try:
+                model_filename = "".join(c if c.isalnum() or c in '._-' else "_" for c in self.model) + ".json"
                 with importlib.resources.open_text(
-                    "benqprojector.configs", f"{self.model}.json"
+                    "benqprojector.configs", model_filename
                 ) as file:
                     self.projector_config = json.load(file)
             except FileNotFoundError:
@@ -310,7 +311,7 @@ class BenQProjector:
             #     await asyncio.sleep(seconds)
             # asyncio.run(__sleep())
             # asyncio.run(asyncio.sleep(seconds))
-        except RuntimeError:
+        except (RuntimeError, AttributeError):
             # No running event loop, time.sleep() is safe to use.
             time.sleep(seconds)
 
