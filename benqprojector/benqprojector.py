@@ -311,7 +311,7 @@ class BenQProjector:
             #     await asyncio.sleep(seconds)
             # asyncio.run(__sleep())
             # asyncio.run(asyncio.sleep(seconds))
-        except RuntimeError:
+        except (RuntimeError, AttributeError):
             # No running event loop, time.sleep() is safe to use.
             time.sleep(seconds)
 
