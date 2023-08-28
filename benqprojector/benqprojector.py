@@ -197,7 +197,10 @@ class BenQProjector(ABC):
             self._interactive = True
 
     def _connect(self) -> bool:
-        if not self._connection.is_open and self._connection.open():
+        if self._connection and not self._connection.is_open:
+            self._connection.open()
+
+        if self._connection and self._connection.is_open:
             return True
 
         return False
