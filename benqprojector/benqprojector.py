@@ -5,16 +5,21 @@ Created on 27 Nov 2022
 
 @author: Rogier van Staveren
 """
-import asyncio
 import importlib.resources
 import json
 import logging
 import re
 import sys
 import time
+from abc import ABC
 from datetime import datetime
 
-import serial
+from benqprojector.benqconnection import (
+    BenQConnection,
+    BenQConnectionError,
+    BenQSerialConnection,
+    BenQTelnetConnection,
+)
 
 logger = logging.getLogger(__name__)
 
@@ -23,7 +28,6 @@ BAUD_RATES = [2400, 4800, 9600, 14400, 19200, 38400, 57600, 115200]
 RESPONSE_RE_STRICT = r"^\*([^=]*)=([^#]*)#$"
 RESPONSE_RE_LOSE = r"^\*?([^=]*)=([^#]*)#?$"
 
-_SERIAL_TIMEOUT = 0.05
 _RESPONSE_TIMEOUT = 5.0
 _BUSY_TIMEOUT = 1
 
@@ -56,7 +60,8 @@ class UnsupportedItemError(BenQProjectorError):
     """
     Unsupported item error.
 
-    If a command with correct format is not valid for the projector model, it will echo Unsupported item.
+    If a command with correct format is not valid for the projector model it will echo
+    `Unsupported item`.
     """
 
 
@@ -64,7 +69,8 @@ class BlockedItemError(BenQProjectorError):
     """
     Blocked item error.
 
-    If a command with correct format cannot be executed under certain condition, it will echo Block item.
+    If a command with correct format cannot be executed under certain condition it will echo
+    `Block item`.
     """
 
 
@@ -95,17 +101,16 @@ class ResponseTimeoutError(BenQProjectorError):
 class TooBusyError(BenQProjectorError):
     """
     Too busy error.
-    
-    If the serial connection is to busy with processing other commands. 
+
+    If the serial connection is to busy with processing other commands.
     """
 
-class BenQProjector:
+
+class BenQProjector(ABC):
     """
     BenQProjector class for controlling BenQ projectors.
     """
 
-    # The serial port where the RS-485 interface and screen is connected to.
-    _serial_port = None
     _connection = None
     _busy = False
 
@@ -171,19 +176,15 @@ class BenQProjector:
 
     def __init__(
         self,
-        serial_port: str,  # The serial port where the RS-485 interface and
-        # screen is connected to.
-        baud_rate: int,
+        connection: BenQConnection,
         strict_validation: bool = False,
     ):
         """
         Initialises the BenQProjector object.
         """
-        assert serial_port is not None
-        assert baud_rate in BAUD_RATES, "Not a valid baud rate"
+        assert connection is not None
 
-        self._serial_port = serial_port
-        self._baud_rate = baud_rate
+        self._connection = connection
 
         if strict_validation:
             self._response_re = re.compile(RESPONSE_RE_STRICT)
@@ -196,29 +197,10 @@ class BenQProjector:
             self._interactive = True
 
     def _connect(self) -> bool:
-        if self._connection is None:
-            connection = serial.Serial(
-                port=self._serial_port,
-                baudrate=self._baud_rate,
-                bytesize=serial.EIGHTBITS,
-                parity=serial.PARITY_NONE,
-                stopbits=serial.STOPBITS_ONE,
-                timeout=_SERIAL_TIMEOUT,
-            )
+        if not self._connection.is_open and self._connection.open():
+            return True
 
-            # Open the connection
-            if not connection.is_open:
-                connection.open()
-
-            self._connection = connection
-        elif not self._connection.is_open:
-            # Try to repair the connection
-            self._connection.open()
-
-        if not self._connection.is_open:
-            return False
-
-        return True
+        return False
 
     def connect(self) -> bool:
         """
@@ -279,10 +261,8 @@ class BenQProjector:
         if mac is not None:
             self._mac = mac.lower()
             self.unique_id = self._mac
-        else:
-            self.unique_id = self._serial_port
 
-        logger.info("Device %s available", self._serial_port)
+        logger.info("Device %s available", self.unique_id)
 
         self.update_power()
 
@@ -300,19 +280,6 @@ class BenQProjector:
         If the list of supported commands is not (yet) set it is assumed the command is supported.
         """
         return self._supported_commands is None or command in self._supported_commands
-
-    def _sleep(self, seconds):
-        try:
-            loop = asyncio.get_running_loop()
-            logger.debug("Sleep %s seconds", seconds)
-            loop.sleep()
-            # async def __sleep():
-            #     await asyncio.sleep(seconds)
-            # asyncio.run(__sleep())
-            # asyncio.run(asyncio.sleep(seconds))
-        except RuntimeError:
-            # No running event loop, time.sleep() is safe to use.
-            time.sleep(seconds)
 
     def _send_command(self, command: str, action: str = "?") -> str:
         """
@@ -334,7 +301,7 @@ class BenQProjector:
                 logger.error("Too busy to send %s=%s", command, action)
                 raise TooBusyError("Too busy to send to send a command")
             logger.debug("Busy")
-            self._sleep(0.01)
+            time.sleep(0.05)
         self._busy = True
 
         response = None
@@ -358,21 +325,18 @@ class BenQProjector:
                         response = previous_response
                     else:
                         raise EmptyResponseError(command, action)
-                else:
-                    response = self._read_response()
-
-                    if response == "":
-                        logger.debug("Empty line")
-                        # Empty line
-                        empty_line_count += 1
-                        # Some projectors (X3000i) seem to return an empty line
-                        # instead of a command echo in some cases.
-                        # For that reason only give the projector some more time
-                        # to respond after more than 1 empty line.
-                        if empty_line_count > 1:
-                            # Give the projector some more time to response
-                            self._sleep(_SERIAL_TIMEOUT)
-                        continue
+                elif (response := self._read_response()) == "":
+                    logger.debug("Empty line")
+                    # Empty line
+                    empty_line_count += 1
+                    # Some projectors (X3000i) seem to return an empty line
+                    # instead of a command echo in some cases.
+                    # For that reason only give the projector some more time
+                    # to respond after more than 1 empty line.
+                    if empty_line_count > 1:
+                        # Give the projector some more time to response
+                        time.sleep(0.05)
+                    continue
 
                 if response == ">":
                     logger.debug("Response is command prompt >")
@@ -396,9 +360,9 @@ class BenQProjector:
                     self._expect_command_echo = False
 
                 return self._parse_response(command, action, _command, response)
-        except serial.SerialException as ex:
+        except BenQConnectionError as ex:
             logger.exception(
-                "Problem communicating with %s, reason: %s", self._serial_port, ex
+                "Problem communicating with %s, reason: %s", self.unique_id, ex
             )
             return None
         finally:
@@ -406,11 +370,13 @@ class BenQProjector:
 
     def _wait_for_prompt(self) -> bool:
         # Clean input buffer
-        self._connection.reset_input_buffer()
-        self._connection.reset_output_buffer()
+        self._connection.reset()
 
         start_time = datetime.now()
-        while (datetime.now() - start_time).total_seconds() < 1:
+        while True:
+            if (datetime.now() - start_time).total_seconds() > 1:
+                raise TimeoutError("Timeout while waiting for prompt")
+
             response = self._connection.read(1)
             if response == b"":
                 self._connection.write(b"\r")
@@ -419,9 +385,9 @@ class BenQProjector:
                 return True
             else:
                 logger.error("Unexpected response: %s", response)
-        else:
-            raise TimeoutError("Timeout while waiting for prompt")
-        
+
+            time.sleep(0.05)
+
         return False
 
     def _read_response(self) -> str:
@@ -436,7 +402,7 @@ class BenQProjector:
                     # Cleanup response
                     response = response.strip(" \n\r\x00")
                     logger.debug("Response: %s", response)
-                    
+
                     return response
                 last_response = datetime.now()
 
@@ -445,7 +411,7 @@ class BenQProjector:
                 raise ResponseTimeoutError("Timeout while waiting for response")
 
             logger.debug("Waiting for response")
-            self._sleep(0.01)
+            time.sleep(0.05)
 
     def _send_raw_command(self, command: str) -> str:
         """
@@ -514,7 +480,7 @@ class BenQProjector:
                 logger.error("Too busy to send %s", command)
                 raise TooBusyError("Too busy to send to send a command")
             logger.debug("Busy")
-            self._sleep(0.01)
+            time.sleep(0.05)
         self._busy = True
 
         response = None
@@ -525,9 +491,9 @@ class BenQProjector:
             # Read and log the response
             while _response := self._read_response():
                 logger.debug(response)
-        except serial.SerialException as ex:
+        except BenQConnectionError as ex:
             logger.exception(
-                "Problem communicating with %s, reason: %s", self._serial_port, ex
+                "Problem communicating with %s, reason: %s", self.unique_id, ex
             )
             return None
         finally:
@@ -542,7 +508,7 @@ class BenQProjector:
         This is done by trying out all know commands.
         """
         if self._interactive:
-            print(f"Supported commands:", end="", flush=True)
+            print("Supported commands:", end="", flush=True)
         else:
             logger.info("Detecting supported commands")
 
@@ -586,7 +552,7 @@ class BenQProjector:
                     pass
                 finally:
                     # Give the projector some time to process command
-                    self._sleep(0.2)
+                    time.sleep(0.2)
         # Set the list of known commands.
         self._supported_commands = supported_commands
 
@@ -640,7 +606,7 @@ class BenQProjector:
                 pass
             finally:
                 # Give the projector some time to process command
-                self._sleep(0.2)
+                time.sleep(0.2)
 
         # Revert mode back to current mode
         self.send_command(command, current_mode)
@@ -727,6 +693,9 @@ class BenQProjector:
         return self.threed_modes
 
     def detect_projector_features(self):
+        """
+        Detect which features are supported by the projector.
+        """
         if self.power_status == BenQProjector.POWERSTATUS_OFF:
             logger.error("Projector needs to be on to examine it's features.")
             return None
@@ -756,11 +725,11 @@ class BenQProjector:
     def update_power(self) -> bool:
         """Update the current power state."""
         response = self.send_command("pow")
-        if response == None:
+        if response is None:
             if self.power_status == self.POWERSTATUS_POWERINGON:
                 logger.debug("Projector still powering on")
                 return True
-            elif self.power_status == self.POWERSTATUS_POWERINGOFF:
+            if self.power_status == self.POWERSTATUS_POWERINGOFF:
                 logger.debug("Projector still powering off")
                 return True
 
@@ -1086,5 +1055,84 @@ class BenQProjector:
         if self.send_command("sour", video_source) == video_source:
             self.video_source = video_source
             return True
+
+        return False
+
+
+class BenQProjectorSerial(BenQProjector):
+    """
+    BenQ Projector class for controlling BenQ projectors over a serial connection.
+    """
+
+    def __init__(
+        self,
+        serial_port: str,  # The serial port where the RS-485 interface and
+        # screen is connected to.
+        baud_rate: int,
+        strict_validation: bool = False,
+    ) -> None:
+        """
+        Initializes the BenQProjectorSerial object.
+        """
+        assert serial_port is not None
+        assert baud_rate in BAUD_RATES, "Not a valid baud rate"
+
+        self._serial_port = serial_port
+        self._baud_rate = baud_rate
+
+        self.unique_id = self._serial_port
+
+        connection = BenQSerialConnection(self._serial_port, self._baud_rate)
+
+        super().__init__(connection, strict_validation)
+
+
+class BenQProjectorTelnet(BenQProjector):
+    """
+    BenQ Projector class for controlling BenQ projectors over a Telnet connection.
+    """
+
+    def __init__(
+        self,
+        host: str,
+        port: int = 32,
+        strict_validation: bool = False,
+    ) -> None:
+        """
+        Initializes the BenQProjectorTelnet object.
+        """
+        assert host is not None
+        assert port is not None
+
+        self._host = host
+        self._port = port
+
+        self.unique_id = f"{self._host}:{self._port}"
+
+        connection = BenQTelnetConnection(self._host, self._port)
+
+        super().__init__(connection, strict_validation)
+
+    def _wait_for_prompt(self) -> bool:
+        # Clean input buffer
+        self._connection.reset()
+
+        start_time = datetime.now()
+        while True:
+            if (datetime.now() - start_time).total_seconds() > 1:
+                raise TimeoutError("Timeout while waiting for prompt")
+
+            response = self._connection._connection.read_until(b">", 0.1)
+            logger.debug("response: %s", response)
+            if response == b"":
+                logger.debug("Empty response")
+                self._connection.write(b"\r")
+                # self._connection.flush()
+            elif response == b">":
+                return True
+            else:
+                logger.error("Unexpected response: %s", response)
+
+            time.sleep(0.01)
 
         return False

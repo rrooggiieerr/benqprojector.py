@@ -7,11 +7,11 @@ import argparse
 import json
 import logging
 import sys
-import time
 
 from serial.serialutil import SerialException
 
-from benqprojector import BenQProjector
+# from benqprojector import BenQProjectorSerial as BenQProjector
+from .benqprojector import BenQProjectorTelnet as BenQProjector
 
 _LOGGER = logging.getLogger(__name__)
 
@@ -19,8 +19,9 @@ _LOGGER = logging.getLogger(__name__)
 if __name__ == "__main__":
     # Read command line arguments
     argparser = argparse.ArgumentParser()
+    argparser.add_argument("host")
     argparser.add_argument("port")
-    argparser.add_argument("baud", type=int)
+    # argparser.add_argument("baud", type=int)
     argparser.add_argument("action", choices=["status", "on", "off", "examine"])
     argparser.add_argument("--wait", dest="wait", action="store_true")
     argparser.add_argument("--debug", dest="debugLogging", action="store_true")
@@ -34,7 +35,8 @@ if __name__ == "__main__":
     else:
         logging.basicConfig(format="%(message)s", level=logging.INFO)
 
-    projector = BenQProjector(args.port, args.baud)
+    # projector = BenQProjector(args.port, args.baud)
+    projector = BenQProjector(args.host, args.port)
     if not projector.connect():
         _LOGGER.error("Failed to connect to BenQ projector")
         sys.exit(1)
