@@ -10,8 +10,7 @@ import sys
 
 from serial.serialutil import SerialException
 
-# from benqprojector import BenQProjectorSerial as BenQProjector
-from .benqprojector import BenQProjectorTelnet as BenQProjector
+from benqprojector import BenQProjectorSerial, BenQProjectorTelnet
 
 _LOGGER = logging.getLogger(__name__)
 
@@ -19,9 +18,17 @@ _LOGGER = logging.getLogger(__name__)
 if __name__ == "__main__":
     # Read command line arguments
     argparser = argparse.ArgumentParser()
-    argparser.add_argument("host")
-    argparser.add_argument("port")
-    # argparser.add_argument("baud", type=int)
+    
+    subparsers = argparser.add_subparsers()
+
+    serial_parser = subparsers.add_parser("serial")
+    serial_parser.add_argument("serial_port")
+    serial_parser.add_argument("baud", type=int)
+
+    telnet_parser = subparsers.add_parser("telnet")
+    telnet_parser.add_argument("host")
+    telnet_parser.add_argument("port", type=int)
+
     argparser.add_argument("action", choices=["status", "on", "off", "examine"])
     argparser.add_argument("--wait", dest="wait", action="store_true")
     argparser.add_argument("--debug", dest="debugLogging", action="store_true")
@@ -35,8 +42,11 @@ if __name__ == "__main__":
     else:
         logging.basicConfig(format="%(message)s", level=logging.INFO)
 
-    # projector = BenQProjector(args.port, args.baud)
-    projector = BenQProjector(args.host, args.port)
+    if 'serial_port' in args:
+        projector = BenQProjectorSerial(args.serial_port, args.baud)
+    elif 'host' in args:
+        projector = BenQProjectorTelnet(args.host, args.port)
+
     if not projector.connect():
         _LOGGER.error("Failed to connect to BenQ projector")
         sys.exit(1)
@@ -47,7 +57,7 @@ if __name__ == "__main__":
 
             _LOGGER.info("Model: %s", projector.model)
             _LOGGER.info("Position: %s", projector.projector_position)
-            if projector.power_status == BenQProjector.POWERSTATUS_OFF:
+            if projector.power_status == projector.POWERSTATUS_OFF:
                 _LOGGER.info("Power off")
             else:
                 _LOGGER.info("Power on")
@@ -60,7 +70,7 @@ if __name__ == "__main__":
             else:
                 _LOGGER.info("Lamp time        : %s hours", projector.lamp_time)
 
-            if projector.power_status == BenQProjector.POWERSTATUS_ON:
+            if projector.power_status == projector.POWERSTATUS_ON:
                 _LOGGER.info("3D               : %s", projector.threed_mode)
                 _LOGGER.info("Picture mode     : %s", projector.picture_mode)
                 _LOGGER.info("Aspect ratio     : %s", projector.aspect_ratio)
@@ -87,7 +97,7 @@ if __name__ == "__main__":
                 pass
         elif args.action == "examine":
             _LOGGER.info("Model: %s", projector.model)
-            if projector.power_status == BenQProjector.POWERSTATUS_OFF:
+            if projector.power_status == projector.POWERSTATUS_OFF:
                 _LOGGER.error("Projector needs to be on to examine it's features.")
                 sys.exit(1)
 
@@ -96,7 +106,7 @@ if __name__ == "__main__":
             _LOGGER.info("Projector configuration JSON:")
             _LOGGER.info(json.dumps(config, indent="\t"))
     except SerialException as e:
-        _LOGGER.error("Failed to connect to AXA Remote, reason: %s", e)
+        _LOGGER.error("Failed to connect to BenQ projector, reason: %s", e)
         sys.exit(1)
     except KeyboardInterrupt:
         # Handle keyboard interrupt
