@@ -132,7 +132,7 @@ class BenQSerialConnection(BenQConnection):
 
             return False
         except serial.SerialException as ex:
-            raise BenQConnectionError() from ex
+            raise BenQConnectionError(str(ex)) from ex
 
     @property
     def is_open(self):
@@ -158,31 +158,31 @@ class BenQSerialConnection(BenQConnection):
         try:
             return self._connection.read(size)
         except serial.SerialException as ex:
-            raise BenQConnectionError() from ex
+            raise BenQConnectionError(str(ex)) from ex
 
     def readline(self) -> str:
         try:
             return self._connection.readline()
         except serial.SerialException as ex:
-            raise BenQConnectionError() from ex
+            raise BenQConnectionError(str(ex)) from ex
 
     def readlines(self) -> str:
         try:
             return self._connection.readlines()
         except serial.SerialException as ex:
-            raise BenQConnectionError() from ex
+            raise BenQConnectionError(str(ex)) from ex
 
     def write(self, data: str) -> int:
         try:
             return self._connection.write(data)
         except serial.SerialException as ex:
-            raise BenQConnectionError() from ex
+            raise BenQConnectionError(str(ex)) from ex
 
     def flush(self) -> None:
         try:
             self._connection.flush()
         except serial.SerialException as ex:
-            raise BenQConnectionError() from ex
+            raise BenQConnectionError(str(ex)) from ex
 
 
 class BenQTelnetConnection(BenQConnection):
@@ -200,11 +200,14 @@ class BenQTelnetConnection(BenQConnection):
         self._port = port
 
     def open(self) -> bool:
-        if self._connection is None:
-            connection = telnetlib.Telnet(self._host, self._port, 1)
-            self._connection = connection
-
-        return True
+        try:
+            if self._connection is None:
+                connection = telnetlib.Telnet(self._host, self._port, 1)
+                self._connection = connection
+    
+            return True
+        except (OSError, TimeoutError) as ex:
+            raise BenQConnectionError(str(ex)) from ex
 
     @property
     def is_open(self):
@@ -221,9 +224,14 @@ class BenQTelnetConnection(BenQConnection):
         return True
 
     def reset(self) -> bool:
-        self._connection.read_very_eager()
+        try:
+            self._connection.read_very_eager()
 
-        return True
+            return True
+        except EOFError as ex:
+            logger.error("Connection lost: %s", ex)
+            self.close()
+            raise BenQConnectionError(str(ex)) from ex
 
     def read(self, size: int = 1) -> str:
         raise NotImplementedError
@@ -234,9 +242,12 @@ class BenQTelnetConnection(BenQConnection):
         except EOFError as ex:
             logger.error("Connection lost: %s", ex)
             self.close()
-            raise ex
+            raise BenQConnectionError(str(ex)) from ex
 
     def write(self, data: str) -> int:
-        self._connection.write(data)
+        try:
+            self._connection.write(data)
+        except OSError as ex:
+            raise BenQConnectionError(str(ex)) from ex
 
         return len(data)
