@@ -282,22 +282,6 @@ class BenQProjector(ABC):
         """
         return self._supported_commands is None or command in self._supported_commands
 
-<<<<<<< HEAD
-=======
-    def _sleep(self, seconds):
-        try:
-            loop = asyncio.get_running_loop()
-            logger.debug("Sleep %s seconds", seconds)
-            loop.sleep()
-            # async def __sleep():
-            #     await asyncio.sleep(seconds)
-            # asyncio.run(__sleep())
-            # asyncio.run(asyncio.sleep(seconds))
-        except (RuntimeError, AttributeError):
-            # No running event loop, time.sleep() is safe to use.
-            time.sleep(seconds)
-
->>>>>>> refs/remotes/origin/main
     def _send_command(self, command: str, action: str = "?") -> str:
         """
         Send a command to the BenQ projector.
