@@ -7,7 +7,8 @@ import logging
 import time
 import unittest
 
-from benqprojector import BenQProjector
+# from benqprojector import BenQProjectorSerial as BenQProjector
+from .benqprojector import BenQProjector as BenQProjector
 
 logger = logging.getLogger(__name__)
 logging.basicConfig(
@@ -21,7 +22,8 @@ class Test(unittest.TestCase):
     _projector = None
 
     def setUp(self):
-        self._projector = BenQProjector(serial_port, 115200)
+        # self._projector = BenQProjector(serial_port, 115200)
+        self._projector = BenQProjector("rs232-bridge.local")
         self._projector.connect()
         self._projector.update()
 
@@ -50,6 +52,9 @@ class Test(unittest.TestCase):
     #         time.sleep(1)
     #     off_time = time.time() - timestamp
     #     logger.info("Off time: %s seconds", off_time)
+
+    def test_status(self):
+        logger.info("Model: %s", self._projector.model)
 
 
 if __name__ == "__main__":

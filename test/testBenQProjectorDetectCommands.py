@@ -6,7 +6,8 @@ Created on 16 Jan 2023
 import logging
 import unittest
 
-from benqprojector import BenQProjector
+# from benqprojector import BenQProjectorSerial as BenQProjector
+from benqprojector import BenQProjectorTelnet as BenQProjector
 
 logger = logging.getLogger(__name__)
 logging.basicConfig(
@@ -20,7 +21,8 @@ class Test(unittest.TestCase):
     _projector = None
 
     def setUp(self):
-        self._projector = BenQProjector(serial_port, 115200)
+        # self._projector = BenQProjector(serial_port, 115200)
+        self._projector = BenQProjector("rs232-bridge.local", 32)
         self._projector.connect()
         self._projector.update()
 
