@@ -25,8 +25,9 @@ Power off  : `<CR>*pow=off#<CR>`
 Source HDMI: `<CR>*sour=hdmi#<CR>`  
 
 The same commands should work over a network connection, but I don't own such
-projector and have not implemented any network functionality. Contact me if
-you have a network connected BenQ projector and like this to work.
+projector and have implemented the network functionality using a serial to
+network bridge. The network support for native networked BenQ projectors is
+thus experimental. Let me know if your network connected BenQ projector works.
 
 ### PJLink
 
@@ -59,7 +60,7 @@ Not supported:
 
 Some projectors need to be **on** to be able to detect the model and the library to work.
 
-Please let me know if your projectors is also supported by this plugin so I
+Please let me know if your projector is also supported by this plugin so I
 can improve the overview of supported devices.
 
 ## Installation
