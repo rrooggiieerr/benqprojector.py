@@ -13,7 +13,8 @@ import serial
 
 logger = logging.getLogger(__name__)
 
-_SERIAL_TIMEOUT = 0.05
+_SERIAL_TIMEOUT = 0.1
+_TELNET_TIMEOUT = 1.0
 
 
 class BenQConnectionError(Exception):
@@ -202,7 +203,7 @@ class BenQTelnetConnection(BenQConnection):
     def open(self) -> bool:
         try:
             if self._connection is None:
-                connection = telnetlib.Telnet(self._host, self._port, 1)
+                connection = telnetlib.Telnet(self._host, self._port, _TELNET_TIMEOUT)
                 self._connection = connection
     
             return True
@@ -238,7 +239,8 @@ class BenQTelnetConnection(BenQConnection):
 
     def readline(self) -> str:
         try:
-            return self._connection.read_until(b"\n", 0.1)
+            # A short timeout makes the connection a lot more responsive
+            return self._connection.read_until(b"\n", _TELNET_TIMEOUT / 5)
         except EOFError as ex:
             logger.error("Connection lost: %s", ex)
             self.close()
