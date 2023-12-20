@@ -381,11 +381,11 @@ class BenQProjector(ABC):
             if (datetime.now() - start_time).total_seconds() > 1:
                 raise TimeoutError("Timeout while waiting for prompt")
 
-            response = self._connection.read(1)
+            response = self._connection.readline()
             if response == b"":
                 self._connection.write(b"\r")
                 self._connection.flush()
-            elif response == b">":
+            elif response[-1:] == b">":
                 return True
             else:
                 logger.error("Unexpected response: %s", response)
@@ -1116,27 +1116,3 @@ class BenQProjectorTelnet(BenQProjector):
         connection = BenQTelnetConnection(self._host, self._port)
 
         super().__init__(connection, strict_validation)
-
-    def _wait_for_prompt(self) -> bool:
-        # Clean input buffer
-        self._connection.reset()
-
-        start_time = datetime.now()
-        while True:
-            if (datetime.now() - start_time).total_seconds() > 1:
-                raise TimeoutError("Timeout while waiting for prompt")
-
-            response = self._connection._connection.read_until(b">", 0.1)
-            logger.debug("response: %s", response)
-            if response == b"":
-                logger.debug("Empty response")
-                self._connection.write(b"\r")
-                # self._connection.flush()
-            elif response == b">":
-                return True
-            else:
-                logger.error("Unexpected response: %s", response)
-
-            time.sleep(0.01)
-
-        return False
