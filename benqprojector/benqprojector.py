@@ -1099,7 +1099,7 @@ class BenQProjectorTelnet(BenQProjector):
     def __init__(
         self,
         host: str,
-        port: int = 32,
+        port: int = 8000,
         strict_validation: bool = False,
     ) -> None:
         """
