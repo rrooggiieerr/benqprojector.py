@@ -54,14 +54,14 @@ class BenQConnection(ABC):
         raise NotImplementedError
 
     @abstractmethod
-    def read(self, size: int = 1) -> str:
+    def read(self, size: int = 1) -> bytes:
         """
         Read size bytes from the connection.
         """
         raise NotImplementedError
 
     @abstractmethod
-    def readline(self) -> str:
+    def readline(self) -> bytes:
         """
         Reads a line from the connection.
         """
@@ -82,7 +82,7 @@ class BenQConnection(ABC):
         return lines
 
     @abstractmethod
-    def write(self, data: str) -> int:
+    def write(self, data: bytes) -> int:
         """
         Output the given string over the connection.
         """
@@ -155,25 +155,25 @@ class BenQSerialConnection(BenQConnection):
 
         return True
 
-    def read(self, size: int = 1) -> str:
+    def read(self, size: int = 1) -> bytes:
         try:
             return self._connection.read(size)
         except serial.SerialException as ex:
             raise BenQConnectionError(str(ex)) from ex
 
-    def readline(self) -> str:
+    def readline(self) -> bytes:
         try:
             return self._connection.readline()
         except serial.SerialException as ex:
             raise BenQConnectionError(str(ex)) from ex
 
-    def readlines(self) -> str:
+    def readlines(self) -> bytes:
         try:
             return self._connection.readlines()
         except serial.SerialException as ex:
             raise BenQConnectionError(str(ex)) from ex
 
-    def write(self, data: str) -> int:
+    def write(self, data: bytes) -> int:
         try:
             return self._connection.write(data)
         except serial.SerialException as ex:
@@ -234,10 +234,10 @@ class BenQTelnetConnection(BenQConnection):
             self.close()
             raise BenQConnectionError(str(ex)) from ex
 
-    def read(self, size: int = 1) -> str:
+    def read(self, size: int = 1) -> bytes:
         raise NotImplementedError
 
-    def readline(self) -> str:
+    def readline(self) -> bytes:
         try:
             # A short timeout makes the connection a lot more responsive
             return self._connection.read_until(b"\n", _TELNET_TIMEOUT / 5)
@@ -246,7 +246,7 @@ class BenQTelnetConnection(BenQConnection):
             self.close()
             raise BenQConnectionError(str(ex)) from ex
 
-    def write(self, data: str) -> int:
+    def write(self, data: bytes) -> int:
         try:
             self._connection.write(data)
         except OSError as ex:
