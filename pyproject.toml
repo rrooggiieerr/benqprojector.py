@@ -4,7 +4,7 @@ build-backend = "setuptools.build_meta"
 
 [project]
 name = "benqprojector"
-version = "0.0.12.5"
+version = "0.0.13"
 license = {text = "Apache-2.0"}
 authors = [
     { name="Rogier van Staveren" }
@@ -19,7 +19,8 @@ classifiers = [
     "Operating System :: OS Independent",
 ]
 dependencies = [
-    "pyserial>=3.4"
+    "pyserial>=3.4",
+    "telnetlib>=3.12.1"
 ]
 
 [project.urls]
