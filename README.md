@@ -19,10 +19,10 @@ This are the protocol details:
 
 Where `<CR>` is a Carriage Return
 
-Examples:
-Power on   : `<CR>*pow=on#<CR>`
-Power off  : `<CR>*pow=off#<CR>`
-Source HDMI: `<CR>*sour=hdmi#<CR>`
+Examples:  
+Power on   : `<CR>*pow=on#<CR>`  
+Power off  : `<CR>*pow=off#<CR>`  
+Source HDMI: `<CR>*sour=hdmi#<CR>`  
 
 The same commands should work over a network connection, but I don't own such
 projector and have not implemented any network functionality. Contact me if
@@ -57,6 +57,8 @@ Not supported:
 * RP790S
 * RP705H
 
+Some projectors need to be **on** to be able to detect the model and the library to work.
+
 Please let me know if your projectors is also supported by this plugin so I
 can improve the overview of supported devices.
 
@@ -69,14 +71,14 @@ manager PIP:
 You can use the Python BenQ projector library directly from the command line
 to turn on and off your projector using the following syntax:
 
-Status of the projector: `python3 -m benqprojector serial <serial port> <baud> status`
-Turn on the projector: `python3 -m benqprojector serial <serial port> <baud> on`
+Status of the projector: `python3 -m benqprojector serial <serial port> <baud> status`  
+Turn on the projector: `python3 -m benqprojector serial <serial port> <baud> on`  
 Turn off the projector: `python3 -m benqprojector serial <serial port> <baud> off`
 
 Or if your projector is connected using a serial to network bridge:
 
-Status of the projector: `python3 -m benqprojector telnet <host> <port> status`
-Turn on the projector: `python3 -m benqprojector telnet <host> <port> on`
+Status of the projector: `python3 -m benqprojector telnet <host> <port> status`  
+Turn on the projector: `python3 -m benqprojector telnet <host> <port> on`  
 Turn off the projector: `python3 -m benqprojector telnet <host> <port> off`
 
 ### Detecting your projector capabilities
@@ -90,5 +92,5 @@ To examine your projector capabilities: `python3 -m benqprojector serial <serial
 Your projector needs to be on to be able to detact all your projector
 capabilities.
 
-Do you enjoy using this Python library? Then consider supporting my work:\
+Do you enjoy using this Python library? Then consider supporting my work:  
 [<img src="https://cdn.buymeacoffee.com/buttons/v2/default-yellow.png" alt="Buy Me A Coffee" style="height: 60px !important;width: 217px !important;" >](https://www.buymeacoffee.com/rrooggiieerr)
