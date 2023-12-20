@@ -8,7 +8,7 @@ import time
 import unittest
 
 # from benqprojector import BenQProjectorSerial as BenQProjector
-from .benqprojector import BenQProjector as BenQProjector
+from benqprojector import BenQProjectorTelnet as BenQProjector
 
 logger = logging.getLogger(__name__)
 logging.basicConfig(
