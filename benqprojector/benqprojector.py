@@ -386,13 +386,15 @@ class BenQProjector(ABC):
                 self._connection.flush()
             elif response[-1:] == b">":
                 return True
-            elif response == b">\r\r\n":
+            elif response.strip() == b"":
+                pass
+            elif response.strip() == b">":
                 pass
             else:
                 logger.error("Unexpected response: %s", response)
 
             if (datetime.now() - start_time).total_seconds() > 1:
-                raise TimeoutError("Timeout while waiting for prompt")
+                raise ResponseTimeoutError("Timeout while waiting for prompt")
 
             time.sleep(0.05)
 
@@ -539,28 +541,38 @@ class BenQProjector(ABC):
         # Loop trough all known commands and test if a response is given.
         for command in self.projector_config_all.get("commands"):
             if command not in ignore_commands:
-                try:
+                retries = 0
+                while True:
                     try:
-                        response = self._send_command(command)
-                        if response is not None:
+                        try:
+                            response = self._send_command(command)
+                            if response is not None:
+                                supported_commands.append(command)
+                            else:
+                                command = None
+                        except BlockedItemError:
                             supported_commands.append(command)
-                        else:
-                            command = None
-                    except BlockedItemError:
-                        supported_commands.append(command)
-                        command = f"{command}?"
+                            command = f"{command}?"
+                        except ResponseTimeoutError:
+                            if retries < 2:
+                                retries += 1
+                                continue
 
-                    if command:
-                        # A response is given, the command is supported.
-                        if self._interactive:
-                            print(f" {command}", end="", flush=True)
-                        else:
-                            logger.info("Command %s supported", command)
-                except BenQProjectorError:
-                    pass
-                finally:
-                    # Give the projector some time to process command
-                    time.sleep(0.2)
+                            supported_commands.append(command)
+                            command = f"{command}¿"
+
+                        if command:
+                            # A response is given, the command is supported.
+                            if self._interactive:
+                                print(f" {command}", end="", flush=True)
+                            else:
+                                logger.info("Command %s supported", command)
+                    except BenQProjectorError:
+                        pass
+                    finally:
+                        # Give the projector some time to process command
+                        time.sleep(0.2)
+                    break
         # Set the list of known commands.
         self._supported_commands = supported_commands
 
@@ -603,9 +615,9 @@ class BenQProjector(ABC):
                 except BlockedItemError:
                     supported_modes.append(mode)
                     mode = f"{mode}?"
-                except TimeoutError:
+                except ResponseTimeoutError:
                     supported_modes.append(mode)
-                    mode = f"{mode}?"
+                    mode = f"{mode}¿"
 
                 if mode:
                     # A response is given, the mode is supported.
@@ -712,7 +724,7 @@ class BenQProjector(ABC):
             "menuposition",
             self.projector_config_all.get("menu_positions"),
         )
-        return self.projector_positions
+        return self.menu_positions
 
     def detect_projector_features(self):
         """
