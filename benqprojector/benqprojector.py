@@ -1081,12 +1081,9 @@ class BenQProjectorSerial(BenQProjector):
         assert serial_port is not None
         assert baud_rate in BAUD_RATES, "Not a valid baud rate"
 
-        self._serial_port = serial_port
-        self._baud_rate = baud_rate
+        self.unique_id = serial_port
 
-        self.unique_id = self._serial_port
-
-        connection = BenQSerialConnection(self._serial_port, self._baud_rate)
+        connection = BenQSerialConnection(serial_port, baud_rate)
 
         super().__init__(connection, strict_validation)
 
@@ -1108,11 +1105,8 @@ class BenQProjectorTelnet(BenQProjector):
         assert host is not None
         assert port is not None
 
-        self._host = host
-        self._port = port
+        self.unique_id = f"{host}:{port}"
 
-        self.unique_id = f"{self._host}:{self._port}"
-
-        connection = BenQTelnetConnection(self._host, self._port)
+        connection = BenQTelnetConnection(host, port)
 
         super().__init__(connection, strict_validation)
