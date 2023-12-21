@@ -147,6 +147,7 @@
 	],
 	"menu_positions": [
 		"cen",
+		"center",
 		"tl",
 		"tr",
 		"br",
