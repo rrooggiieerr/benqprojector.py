@@ -24,10 +24,22 @@ Power on   : `<CR>*pow=on#<CR>`
 Power off  : `<CR>*pow=off#<CR>`  
 Source HDMI: `<CR>*sour=hdmi#<CR>`  
 
-The same commands should work over a network connection, but I don't own such
-projector and have implemented the network functionality using a serial to
-network bridge. The network support for native networked BenQ projectors is
-thus experimental. Let me know if your network connected BenQ projector works.
+## Network connected projectors
+
+The commands as descrived above should also work over a network connection,
+however I don't own such projector and have implemented the network
+functionality using a serial to network bridge. The network support for native
+networked BenQ projectors is thus experimental. Let me know if your network
+connected BenQ projector works.
+
+Example of a serial to network bridge using a serial to TTL converter and a
+Wemos C3 Mini  
+<img src="https://raw.githubusercontent.com/rrooggiieerr/benqprojector.py/main/serial%20to%20network%20bridge.png"/>
+
+It has to be said that a direct serial conection to the projector is much more
+responsive than using a network connection, at least when using a serial to
+network bridge. Maybe this is different on a native networked BenQ projector or
+using ethernet instead of WiFi.
 
 ### PJLink
 
