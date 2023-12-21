@@ -39,7 +39,7 @@
 	"projector_positions": ["ft", "re", "rc", "fc"],
 	"lamp_modes": ["lnor", "eco", "seco"],
 	"3d_modes": ["off", "auto", "tb", "fs", "fp", "sbs", "da", "iv"],
-	"menu_positions": ["tl", "tr", "br", "bl"],
+	"menu_positions": ["cen", "tl", "tr", "br", "bl"],
 	"poweron_time": 100,
 	"poweroff_time": 100
 }
