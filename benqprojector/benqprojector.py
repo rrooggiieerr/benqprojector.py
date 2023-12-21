@@ -86,7 +86,7 @@ class InvallidResponseError(BenQProjectorError):
         self.response = response
 
 
-class ResponseTimeoutError(BenQProjectorError):
+class ResponseTimeoutError(BenQProjectorError, TimeoutError):
     """
     Response timeout error.
 
@@ -218,7 +218,7 @@ class BenQProjector(ABC):
             model = self._send_command("modelname")
             assert model is not None, "Failed to retrieve projector model"
         except IllegalFormatError:
-            # W1000 does not seem to return project model, but gives an illegal
+            # W1000 does not seem to return projector model, but gives an illegal
             # format error. Maybe there are other models with the same problem?
             logger.error("Unable to retrieve projector model")
         except BlockedItemError:
