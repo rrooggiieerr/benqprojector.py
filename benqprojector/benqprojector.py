@@ -130,6 +130,7 @@ class BenQProjector(ABC):
     projector_positions = None
     lamp_modes = None
     threed_modes = None  # 3D modes
+    menu_positions = None
 
     # Current modes
     video_source = None
@@ -254,6 +255,7 @@ class BenQProjector(ABC):
         self.projector_positions = (self.projector_config.get("projector_positions"),)
         self.lamp_modes = self.projector_config.get("lamp_modes")
         self.threed_modes = self.projector_config.get("3d_modes")
+        self.menu_positions = self.projector_config.get("menu_positions")
 
         self._poweron_time = self.projector_config.get("poweron_time")
         self._poweroff_time = self.projector_config.get("poweroff_time")
@@ -601,6 +603,9 @@ class BenQProjector(ABC):
                 except BlockedItemError:
                     supported_modes.append(mode)
                     mode = f"{mode}?"
+                except TimeoutError:
+                    supported_modes.append(mode)
+                    mode = f"{mode}?"
 
                 if mode:
                     # A response is given, the mode is supported.
@@ -698,6 +703,17 @@ class BenQProjector(ABC):
         )
         return self.threed_modes
 
+    def detect_menu_positions(self):
+        """
+        Detect which menu positions are supported by the projector.
+        """
+        self.menu_positions = self._detect_modes(
+            "menu positions",
+            "menuposition",
+            self.projector_config_all.get("menu_positions"),
+        )
+        return self.projector_positions
+
     def detect_projector_features(self):
         """
         Detect which features are supported by the projector.
@@ -725,6 +741,8 @@ class BenQProjector(ABC):
         config["lamp_modes"] = self.detect_lamp_modes()
         time.sleep(2)
         config["3d_modes"] = self.detect_3d_modes()
+        time.sleep(2)
+        config["menu_positions"] = self.detect_menu_positions()
 
         return config
 

@@ -145,6 +145,13 @@
 		"rc",
 		"fc"
 	],
+	"menu_positions": [
+		"center",
+		"tl",
+		"tr",
+		"br",
+		"bl"
+	],
 	"lamp_modes": [
 		"lnor",
 		"eco",
