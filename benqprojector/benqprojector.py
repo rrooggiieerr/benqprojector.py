@@ -378,17 +378,19 @@ class BenQProjector(ABC):
 
         start_time = datetime.now()
         while True:
-            if (datetime.now() - start_time).total_seconds() > 1:
-                raise TimeoutError("Timeout while waiting for prompt")
-
             response = self._connection.readline()
             if response == b"":
                 self._connection.write(b"\r")
                 self._connection.flush()
             elif response[-1:] == b">":
                 return True
+            elif response == b">\r\r\n":
+                pass
             else:
                 logger.error("Unexpected response: %s", response)
+
+            if (datetime.now() - start_time).total_seconds() > 1:
+                raise TimeoutError("Timeout while waiting for prompt")
 
             time.sleep(0.05)
 
