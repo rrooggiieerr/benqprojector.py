@@ -268,7 +268,7 @@ class BenQProjector(ABC):
             self._mac = mac.lower()
             self.unique_id = self._mac
 
-        logger.info("Device %s available", self.unique_id)
+        logger.info("Device on %s available", self._connection)
 
         self.update_power()
 
