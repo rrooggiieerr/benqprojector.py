@@ -107,6 +107,9 @@ class BenQSerialConnection(BenQConnection):
         self._serial_port = serial_port
         self._baud_rate = baud_rate
 
+    def __str__(self):
+        return self._serial_port
+
     def open(self) -> bool:
         try:
             if self._connection is None:
@@ -199,6 +202,9 @@ class BenQTelnetConnection(BenQConnection):
 
         self._host = host
         self._port = port
+
+    def __str__(self):
+        return f"{self._host}:{self._port}"
 
     def open(self) -> bool:
         try:
