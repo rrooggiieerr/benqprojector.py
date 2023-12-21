@@ -252,7 +252,7 @@ class BenQProjector(ABC):
         self.picture_modes = self.projector_config.get("picture_modes")
         self.color_temperatures = self.projector_config.get("color_temperatures")
         self.aspect_ratios = self.projector_config.get("aspect_ratios")
-        self.projector_positions = (self.projector_config.get("projector_positions"),)
+        self.projector_positions = self.projector_config.get("projector_positions")
         self.lamp_modes = self.projector_config.get("lamp_modes")
         self.threed_modes = self.projector_config.get("3d_modes")
         self.menu_positions = self.projector_config.get("menu_positions")
