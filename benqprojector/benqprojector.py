@@ -294,7 +294,7 @@ class BenQProjector(ABC):
         command = command.lower()
 
         if not self.supports_command(command):
-            logger.error("Command %s not supported", command)
+            logger.warn("Command %s not supported", command)
             return None
 
         if self._connect() is False:
