@@ -262,7 +262,7 @@ class BenQProjector(ABC):
 
         mac = None
         if self.supports_command("macaddr"):
-            mac = self.send_command("macaddr=?")
+            mac = self.send_command("macaddr")
 
         if mac is not None:
             self._mac = mac.lower()
