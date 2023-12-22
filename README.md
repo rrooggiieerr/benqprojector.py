@@ -32,9 +32,10 @@ functionality using a serial to network bridge. The network support for native
 networked BenQ projectors is thus experimental. Let me know if your network
 connected BenQ projector works.
 
-Example of a serial to network bridge using a serial to TTL converter and a
-Wemos C3 Mini  
-<img src="https://raw.githubusercontent.com/rrooggiieerr/benqprojector.py/main/serial%20to%20network%20bridge.png"/>
+<figure> 
+	<img src="https://raw.githubusercontent.com/rrooggiieerr/benqprojector.py/main/serial%20to%20network%20bridge.png" alt="Serial to network bridge">
+	<figcaption>Example of a serial to network bridge using a serial to TTL converter and a Wemos C3 Mini</figcaption>
+</figure>
 
 It has to be said that a direct serial conection to the projector is much more
 responsive than using a network connection, at least when using a serial to
@@ -76,11 +77,13 @@ Please let me know if your projector is also supported by this plugin so I
 can improve the overview of supported devices.
 
 ## Installation
-You can install the Python BenQ projector library using the Python package
-manager PIP:
+
+To install the Python BenQ projector library use the Python package
+manager PIP:  
 `pip3 install benqprojector`
 
-## benqprojector CLI
+## `benqprojector` CLI
+
 You can use the Python BenQ projector library directly from the command line
 to turn on and off your projector using the following syntax:
 
@@ -95,6 +98,7 @@ Turn on the projector: `python3 -m benqprojector telnet <host> <port> on`
 Turn off the projector: `python3 -m benqprojector telnet <host> <port> off`
 
 ### Detecting your projector capabilities
+
 The benqprojector CLI can detect the commands, sources and modes your
 projector supports. If you like to have your projector fully supported by this
 Python library please run this command and create an issue on Github with the
@@ -102,8 +106,16 @@ output attached.
 
 To examine your projector capabilities: `python3 -m benqprojector serial <serial port> <baud> examine`
 
-Your projector needs to be on to be able to detact all your projector
-capabilities.
+Your projector needs to be **on** and on an **active source** to be able to detact
+all your projector capabilities.
+
+### Troubleshooting
+
+You can add the `--debug` flag to any CLI command to get a more details on
+what's going on. Like so:  
+`python3 -m benqprojector serial <serial port> <baud> status --debug`
+
+### Support my work
 
 Do you enjoy using this Python library? Then consider supporting my work:  
-[<img src="https://cdn.buymeacoffee.com/buttons/v2/default-yellow.png" alt="Buy Me A Coffee" style="height: 60px !important;width: 217px !important;" >](https://www.buymeacoffee.com/rrooggiieerr)
+[<img src="https://cdn.buymeacoffee.com/buttons/v2/default-yellow.png" alt="Buy Me A Coffee" style="height: 60px !important;width: 217px !important;">](https://www.buymeacoffee.com/rrooggiieerr)
