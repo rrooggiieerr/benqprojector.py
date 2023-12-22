@@ -52,6 +52,7 @@ BenQ protocol instead. The PJLink protocol is covered by other libraries.
 ## Supported projectors
 
 Known to work:
+* MW519
 * W1070
 * W1100
 * W1110
