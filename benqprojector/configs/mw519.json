@@ -1,0 +1,87 @@
+{
+	"commands": [
+		"3d",
+		"appmod",
+		"asp",
+		"audiosour",
+		"baud",
+		"bc",
+		"blank",
+		"bri",
+		"color",
+		"con",
+		"ct",
+		"directpower",
+		"freeze",
+		"highaltitude",
+		"ins",
+		"lampm",
+		"lpsaver",
+		"ltim",
+		"modelname",
+		"mute",
+		"pow",
+		"pp",
+		"qas",
+		"sharp",
+		"sour",
+		"standbymnt",
+		"vol"
+	],
+	"video_sources": [
+		"hdmi",
+		"rgb",
+		"rgb2",
+		"svid",
+		"vid"
+	],
+	"audio_sources": [
+		"off",
+		"rgb",
+		"rgb2",
+		"vid",
+		"hdmi"
+	],
+	"picture_modes": [
+		"dynamic",
+		"preset",
+		"srgb",
+		"cine",
+		"user1",
+		"user2"
+	],
+	"color_temperatures": [
+		"warm",
+		"normal",
+		"cool"
+	],
+	"aspect_ratios": [
+		"4:3",
+		"16:9",
+		"16:10",
+		"auto",
+		"real"
+	],
+	"projector_positions": [
+		"ft",
+		"re",
+		"rc",
+		"fc"
+	],
+	"lamp_modes": [
+		"lnor",
+		"eco",
+		"seco"
+	],
+	"3d_modes": [
+		"off",
+		"auto",
+		"tb",
+		"fs",
+		"fp",
+		"sbs",
+		"da",
+		"iv"
+	],
+	"menu_positions": []
+}
