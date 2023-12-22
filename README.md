@@ -9,9 +9,8 @@ series but probably also others.
 
 ## Protocol
 
-This are the protocol details:
-
-2400 baud 8N1
+This Python library works if your projector supports the following command
+structure: 
 
 ```
 <CR>*<key>=<value>#<CR>
@@ -22,11 +21,15 @@ Where `<CR>` is a Carriage Return
 Examples:  
 Power on   : `<CR>*pow=on#<CR>`  
 Power off  : `<CR>*pow=off#<CR>`  
-Source HDMI: `<CR>*sour=hdmi#<CR>`  
+Change source to HDMI: `<CR>*sour=hdmi#<CR>`  
 
-## Network connected projectors
+### Serial port
 
-The commands as descrived above should also work over a network connection,
+You can lookup and change the baud rate in the menu of your BenQ projector.
+
+### Network connected projectors
+
+The commands as described above should also work over a network connection,
 however I don't own such projector and have implemented the network
 functionality using a serial to network bridge. The network support for native
 networked BenQ projectors is thus experimental. Let me know if your network
@@ -34,7 +37,7 @@ connected BenQ projector works.
 
 Example of a serial to network bridge using a serial to TTL converter and a
 Wemos C3 Mini:  
-<img src="https://raw.githubusercontent.com/rrooggiieerr/benqprojector.py/main/serial%20to%20network%20bridge.png"/>
+<img src="https://raw.githubusercontent.com/rrooggiieerr/benqprojector.py/main/serial%20to%20network%20bridge.png">
 
 It has to be said that a direct serial conection to the projector is much more
 responsive than using a network connection, at least when using a serial to
@@ -114,7 +117,7 @@ You can add the `--debug` flag to any CLI command to get a more details on
 what's going on. Like so:  
 `python3 -m benqprojector serial <serial port> <baud> status --debug`
 
-### Support my work
+## Support my work
 
 Do you enjoy using this Python library? Then consider supporting my work:  
 [<img src="https://cdn.buymeacoffee.com/buttons/v2/default-yellow.png" alt="Buy Me A Coffee" style="height: 60px !important;width: 217px !important;">](https://www.buymeacoffee.com/rrooggiieerr)
