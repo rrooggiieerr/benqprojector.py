@@ -106,7 +106,8 @@ projector supports. If you like to have your projector fully supported by this
 Python library please run this command and create an issue on Github with the
 output attached.
 
-To examine your projector capabilities: `python3 -m benqprojector serial <serial port> <baud> examine`
+To examine your projector capabilities:  
+`python3 -m benqprojector serial <serial port> <baud> examine`
 
 Your projector needs to be **on** and on an **active source** to be able to detect
 all your projector capabilities.
