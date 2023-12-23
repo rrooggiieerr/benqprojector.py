@@ -1,0 +1,16 @@
+{
+	"commands": [
+		"pow"
+	],
+	"sources": [],
+	"audio_sources": [],
+	"picture_modes": [],
+	"color_temperatures": [],
+	"aspect_ratios": [],
+	"projector_positions": [],
+	"menu_positions": [],
+	"lamp_modes": [],
+	"3d_modes": [],
+	"poweron_time": 100,
+	"poweroff_time": 100
+}
