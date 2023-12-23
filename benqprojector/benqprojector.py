@@ -47,6 +47,9 @@ class IllegalFormatError(BenQProjectorError):
     If a command format is illegal, it will echo Illegal format.
     """
 
+    def __str__(self):
+        return f"Illegal format for command '{self.command}' and action '{self.action}'"
+
 
 class EmptyResponseError(BenQProjectorError):
     """
@@ -54,6 +57,9 @@ class EmptyResponseError(BenQProjectorError):
 
     If the response is empty.
     """
+
+    def __str__(self):
+        return f"Empty response for command '{self.command}' and action '{self.action}'"
 
 
 class UnsupportedItemError(BenQProjectorError):
@@ -64,6 +70,9 @@ class UnsupportedItemError(BenQProjectorError):
     `Unsupported item`.
     """
 
+    def __str__(self):
+        return f"Unsupported item for command '{self.command}' and action '{self.action}'"
+
 
 class BlockedItemError(BenQProjectorError):
     """
@@ -72,6 +81,9 @@ class BlockedItemError(BenQProjectorError):
     If a command with correct format cannot be executed under certain condition it will echo
     `Block item`.
     """
+
+    def __str__(self):
+        return f"Block item for command '{self.command}' and action '{self.action}'"
 
 
 class InvallidResponseError(BenQProjectorError):
@@ -85,6 +97,9 @@ class InvallidResponseError(BenQProjectorError):
         super().__init__(command, action)
         self.response = response
 
+    def __str__(self):
+        return f"Invalid response for command '{self.command}' and action '{self.action}'. response: {self.response}"
+
 
 class ResponseTimeoutError(BenQProjectorError, TimeoutError):
     """
@@ -93,10 +108,18 @@ class ResponseTimeoutError(BenQProjectorError, TimeoutError):
     If the response takes to long to receive.
     """
 
-    def __init__(self, command=None, action=None, response=None):
-        super().__init__(command, action)
-        self.response = response
+    def __str__(self):
+        return f"Response timeout for command '{self.command}' and action '{self.action}'"
 
+class PromptTimeoutError(ResponseTimeoutError):
+    """
+    Prompt timeout error.
+
+    If the command prompt takes to long to receive.
+    """
+
+    def __str__(self):
+        return f"Prompt timeout for command '{self.command}' and action '{self.action}'"
 
 class TooBusyError(BenQProjectorError):
     """
@@ -104,6 +127,9 @@ class TooBusyError(BenQProjectorError):
 
     If the serial connection is to busy with processing other commands.
     """
+
+    def __str__(self):
+        return f"Too busy to send '{self.command}' and action '{self.action}'"
 
 
 class BenQProjector(ABC):
@@ -178,6 +204,7 @@ class BenQProjector(ABC):
     def __init__(
         self,
         connection: BenQConnection,
+        model_hint: str = None,
         strict_validation: bool = False,
     ):
         """
@@ -186,6 +213,7 @@ class BenQProjector(ABC):
         assert connection is not None
 
         self._connection = connection
+        self.model = model_hint
 
         if strict_validation:
             self._response_re = re.compile(RESPONSE_RE_STRICT)
@@ -213,21 +241,45 @@ class BenQProjector(ABC):
         if not self._connect():
             return False
 
+        if not self.model:
+            with importlib.resources.open_text("benqprojector.configs", "minimal.json") as file:
+                self.projector_config = json.load(file)
+
+        power = None
+        try:
+            power = self._send_command("pow")
+            if power is None:
+                logger.error("Failed to retrieve projector power state.")
+        except PromptTimeoutError as ex:
+            logger.error("Failed to get projector command prompt, is your projector properly connected?")
+            return False
+        except BlockedItemError as ex:
+            logger.error("Unable to retrieve projector power state, is projector powering down? %s", ex)
+        except BenQProjectorError as ex:
+            logger.error("Unable to retrieve projector power state: %s", ex)
+            return False
+        
         model = None
         try:
             model = self._send_command("modelname")
             assert model is not None, "Failed to retrieve projector model"
-        except IllegalFormatError:
+        except IllegalFormatError as ex:
             # W1000 does not seem to return projector model, but gives an illegal
             # format error. Maybe there are other models with the same problem?
-            logger.error("Unable to retrieve projector model")
-        except BlockedItemError:
-            # Is projector powering down?
-            logger.error(
-                "Unable to retrieve projector model, is projector powering down?"
-            )
-            raise
-        self.model = model
+            logger.error("Unable to retrieve projector model", ex)
+        except BlockedItemError as ex:
+            # W1070/W1250 does not seem to return projector model when off, but gives
+            # an blocked item error. Maybe there are other models with the same problem?
+            if power == "off":
+                logger.error("Unable to retrieve projector model while projector is %s: %s", power, ex)
+            else:
+                # It could also be that the projector is powering down
+                logger.error(
+                    "Unable to retrieve projector model while projector is %s, is projector powering down? %s", power, ex
+                )
+
+        if model is not None:
+            self.model = model
 
         with importlib.resources.open_text("benqprojector.configs", "all.json") as file:
             self.projector_config_all = json.load(file)
@@ -305,7 +357,7 @@ class BenQProjector(ABC):
         while self._busy:
             if (datetime.now() - start_time).total_seconds() > _BUSY_TIMEOUT:
                 logger.error("Too busy to send %s=%s", command, action)
-                raise TooBusyError("Too busy to send to send a command")
+                raise TooBusyError(command, action)
             logger.debug("Busy")
             time.sleep(0.05)
         self._busy = True
@@ -366,6 +418,10 @@ class BenQProjector(ABC):
                     self._expect_command_echo = False
 
                 return self._parse_response(command, action, _command, response)
+        except BenQProjectorError as ex:
+            ex.command = command
+            ex.action = action
+            raise
         except BenQConnectionError as ex:
             logger.exception(
                 "Problem communicating with %s, reason: %s", self.unique_id, ex
@@ -394,7 +450,7 @@ class BenQProjector(ABC):
                 logger.error("Unexpected response: %s", response)
 
             if (datetime.now() - start_time).total_seconds() > 1:
-                raise ResponseTimeoutError("Timeout while waiting for prompt")
+                raise PromptTimeoutError()
 
             time.sleep(0.05)
 
@@ -418,7 +474,7 @@ class BenQProjector(ABC):
 
             if (datetime.now() - last_response).total_seconds() > _RESPONSE_TIMEOUT:
                 logger.error("Timeout while waiting for response")
-                raise ResponseTimeoutError("Timeout while waiting for response")
+                raise ResponseTimeoutError(command, action)
 
             logger.debug("Waiting for response")
             time.sleep(0.05)
@@ -488,7 +544,7 @@ class BenQProjector(ABC):
         while self._busy:
             if (datetime.now() - start_time).total_seconds() > _BUSY_TIMEOUT:
                 logger.error("Too busy to send %s", command)
-                raise TooBusyError("Too busy to send to send a command")
+                raise TooBusyError(command)
             logger.debug("Busy")
             time.sleep(0.05)
         self._busy = True
@@ -532,6 +588,7 @@ class BenQProjector(ABC):
             "left",
             "right",
             "enter",
+            "back",
             "zoomi",
             "zoomo",
             "auto",
@@ -1105,6 +1162,7 @@ class BenQProjectorSerial(BenQProjector):
         serial_port: str,  # The serial port where the RS-485 interface and
         # screen is connected to.
         baud_rate: int,
+        model_hint: str = None,
         strict_validation: bool = False,
     ) -> None:
         """
@@ -1117,7 +1175,7 @@ class BenQProjectorSerial(BenQProjector):
 
         connection = BenQSerialConnection(serial_port, baud_rate)
 
-        super().__init__(connection, strict_validation)
+        super().__init__(connection, model_hint, strict_validation)
 
 
 class BenQProjectorTelnet(BenQProjector):
@@ -1129,6 +1187,7 @@ class BenQProjectorTelnet(BenQProjector):
         self,
         host: str,
         port: int = 8000,
+        model_hint: str = None,
         strict_validation: bool = False,
     ) -> None:
         """
@@ -1141,4 +1200,4 @@ class BenQProjectorTelnet(BenQProjector):
 
         connection = BenQTelnetConnection(host, port)
 
-        super().__init__(connection, strict_validation)
+        super().__init__(connection, model_hint, strict_validation)
