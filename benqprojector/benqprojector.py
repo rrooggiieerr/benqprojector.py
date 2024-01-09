@@ -225,6 +225,29 @@ class BenQProjector(ABC):
             # running interactively
             self._interactive = True
 
+    def get_config(self, key):
+        if not self.projector_config_all:
+            with importlib.resources.open_text("benqprojector.configs", "all.json") as file:
+                self.projector_config_all = json.load(file)
+
+        if not self.projector_config and self.model:
+            try:
+                model_filename = "".join(c if c.isalnum() or c in '._-' else "_" for c in self.model) + ".json"
+                with importlib.resources.open_text(
+                    "benqprojector.configs", model_filename
+                ) as file:
+                    self.projector_config = json.load(file)
+            except FileNotFoundError:
+                pass
+
+        if self.projector_config:
+            value = self.projector_config.get(key)
+            if value is not None:
+                return value
+
+        # Fall back to generic config when key can not be found in configuration for model
+        return self.projector_config_all.get(key)
+
     def _connect(self) -> bool:
         if self._connection and not self._connection.is_open:
             self._connection.open()
@@ -281,36 +304,19 @@ class BenQProjector(ABC):
         if model is not None:
             self.model = model
 
-        with importlib.resources.open_text("benqprojector.configs", "all.json") as file:
-            self.projector_config_all = json.load(file)
+        self._supported_commands = self.get_config("commands")
+        self.video_sources = self.get_config("sources")
+        self.audio_sources = self.get_config("audio_sources")
+        self.picture_modes = self.get_config("picture_modes")
+        self.color_temperatures = self.get_config("color_temperatures")
+        self.aspect_ratios = self.get_config("aspect_ratios")
+        self.projector_positions = self.get_config("projector_positions")
+        self.lamp_modes = self.get_config("lamp_modes")
+        self.threed_modes = self.get_config("3d_modes")
+        self.menu_positions = self.get_config("menu_positions")
 
-        if self.model:
-            try:
-                model_filename = "".join(c if c.isalnum() or c in '._-' else "_" for c in self.model) + ".json"
-                with importlib.resources.open_text(
-                    "benqprojector.configs", model_filename
-                ) as file:
-                    self.projector_config = json.load(file)
-            except FileNotFoundError:
-                pass
-
-        # Fall back to generic config when no configuration for model can be found
-        if not self.projector_config:
-            self.projector_config = self.projector_config_all
-
-        self._supported_commands = self.projector_config.get("commands")
-        self.video_sources = self.projector_config.get("sources")
-        self.audio_sources = self.projector_config.get("audio_sources")
-        self.picture_modes = self.projector_config.get("picture_modes")
-        self.color_temperatures = self.projector_config.get("color_temperatures")
-        self.aspect_ratios = self.projector_config.get("aspect_ratios")
-        self.projector_positions = self.projector_config.get("projector_positions")
-        self.lamp_modes = self.projector_config.get("lamp_modes")
-        self.threed_modes = self.projector_config.get("3d_modes")
-        self.menu_positions = self.projector_config.get("menu_positions")
-
-        self._poweron_time = self.projector_config.get("poweron_time")
-        self._poweroff_time = self.projector_config.get("poweroff_time")
+        self._poweron_time = self.get_config("poweron_time")
+        self._poweroff_time = self.get_config("poweroff_time")
 
         mac = None
         if self.supports_command("macaddr"):
