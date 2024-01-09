@@ -5,7 +5,7 @@ Created on 27 Nov 2022
 
 @author: Rogier van Staveren
 """
-__version__ = "0.0.13.4"
+__version__ = "0.0.13.5"
 
 from benqprojector.benqprojector import (
     BAUD_RATES,
