@@ -474,7 +474,7 @@ class BenQProjector(ABC):
 
             if (datetime.now() - last_response).total_seconds() > _RESPONSE_TIMEOUT:
                 logger.error("Timeout while waiting for response")
-                raise ResponseTimeoutError(command, action)
+                raise ResponseTimeoutError()
 
             logger.debug("Waiting for response")
             time.sleep(0.05)
