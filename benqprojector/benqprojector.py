@@ -501,12 +501,12 @@ class BenQProjector(ABC):
 
         if response in ["*unsupported item#", "unsupported item"]:
             if not self._interactive:
-                logger.error("Command %s unsupported item", _command)
+                logger.warn("Command %s unsupported item", _command)
             raise UnsupportedItemError(command, action)
 
         if response in ["*block item#", "block item"]:
             if not self._interactive:
-                logger.error("Command %s blocked item", _command)
+                logger.warn("Command %s blocked item", _command)
             raise BlockedItemError(command, action)
 
         logger.debug("Raw response: '%s'", response)
@@ -557,6 +557,9 @@ class BenQProjector(ABC):
             # Read and log the response
             while _response := self._read_response():
                 logger.debug(response)
+        except BenQProjectorError as ex:
+            ex.command = command
+            raise
         except BenQConnectionError as ex:
             logger.exception(
                 "Problem communicating with %s, reason: %s", self.unique_id, ex
