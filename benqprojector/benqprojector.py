@@ -301,8 +301,9 @@ class BenQProjector(ABC):
                     "Unable to retrieve projector model while projector is %s, is projector powering down? %s", power, ex
                 )
 
-        if model is not None:
+        if model is not None and model != self.model:
             self.model = model
+            self.projector_config = None
 
         self._supported_commands = self.get_config("commands")
         self.video_sources = self.get_config("sources")
