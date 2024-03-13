@@ -153,10 +153,13 @@ class BenQSerialConnection(BenQConnection):
         return True
 
     def reset(self) -> bool:
-        self._connection.reset_input_buffer()
-        self._connection.reset_output_buffer()
+        try:
+            self._connection.reset_input_buffer()
+            self._connection.reset_output_buffer()
 
-        return True
+            return True
+        except serial.SerialException as ex:
+            raise BenQConnectionError(str(ex)) from ex
 
     def read(self, size: int = 1) -> bytes:
         try:
