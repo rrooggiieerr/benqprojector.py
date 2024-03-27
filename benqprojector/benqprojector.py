@@ -137,8 +137,8 @@ class BenQProjector(ABC):
     BenQProjector class for controlling BenQ projectors.
     """
 
-    _connection = None
-    _busy = False
+    connection = None
+    busy = False
     _init: bool = True
 
     model = None
@@ -213,7 +213,7 @@ class BenQProjector(ABC):
         """
         assert connection is not None
 
-        self._connection = connection
+        self.connection = connection
         self.model = model_hint
 
         if strict_validation:
@@ -250,11 +250,11 @@ class BenQProjector(ABC):
         return self.projector_config_all.get(key)
 
     def _connect(self) -> bool:
-        if self._connection and not self._connection.is_open:
-            logger.info("Connecting to %s", self._connection)
-            self._connection.open()
+        if self.connection and not self.connection.is_open:
+            logger.info("Connecting to %s", self.connection)
+            self.connection.open()
 
-        if self._connection and self._connection.is_open:
+        if self.connection and self.connection.is_open:
             return True
 
         return False
@@ -334,7 +334,7 @@ class BenQProjector(ABC):
             self._mac = mac.lower()
             self.unique_id = self._mac
 
-        logger.info("Device on %s available", self._connection)
+        logger.info("Device on %s available", self.connection)
 
         self.update_power()
 
@@ -344,8 +344,8 @@ class BenQProjector(ABC):
 
     def disconnect(self):
         """Disconnect from the BenQ projector."""
-        if self._connection is not None:
-            self._connection.close()
+        if self.connection is not None:
+            self.connection.close()
 
     def supports_command(self, command) -> bool:
         """
@@ -370,12 +370,12 @@ class BenQProjector(ABC):
             return None
 
         start_time = datetime.now()
-        while self._busy:
+        while self.busy:
             if (datetime.now() - start_time).total_seconds() > _BUSY_TIMEOUT:
                 raise TooBusyError(command, action)
             logger.debug("Busy")
             time.sleep(0.05)
-        self._busy = True
+        self.busy = True
 
         response = None
 
@@ -446,18 +446,18 @@ class BenQProjector(ABC):
             )
             return None
         finally:
-            self._busy = False
+            self.busy = False
 
     def _wait_for_prompt(self) -> bool:
         # Clean input buffer
-        self._connection.reset()
+        self.connection.reset()
 
         start_time = datetime.now()
         while True:
-            response = self._connection.readline()
+            response = self.connection.readline()
             if response == b"":
-                self._connection.write(b"\r")
-                self._connection.flush()
+                self.connection.write(b"\r")
+                self.connection.flush()
             elif response[-1:] == b">":
                 return True
             elif response.strip() == b"":
@@ -478,7 +478,7 @@ class BenQProjector(ABC):
         response = b""
         last_response = datetime.now()
         while True:
-            _response = self._connection.readline()
+            _response = self.connection.readline()
             if len(_response) > 0:
                 response += _response
                 if any(c in _response for c in [b"\n", b"\r", b"\x00"]):
@@ -504,8 +504,8 @@ class BenQProjector(ABC):
         self._wait_for_prompt()
 
         logger.debug("command %s", command)
-        self._connection.write(f"{command}\r".encode("ascii"))
-        self._connection.flush()
+        self.connection.write(f"{command}\r".encode("ascii"))
+        self.connection.flush()
 
     def _parse_response(self, command, action, _command, response):
         # Lowercase the response
@@ -559,12 +559,12 @@ class BenQProjector(ABC):
         Send a raw command to the BenQ projector.
         """
         start_time = datetime.now()
-        while self._busy:
+        while self.busy:
             if (datetime.now() - start_time).total_seconds() > _BUSY_TIMEOUT:
                 raise TooBusyError(command)
             logger.debug("Busy")
             time.sleep(0.05)
-        self._busy = True
+        self.busy = True
 
         response = None
 
@@ -583,7 +583,7 @@ class BenQProjector(ABC):
             )
             return None
         finally:
-            self._busy = False
+            self.busy = False
 
         return response
 
