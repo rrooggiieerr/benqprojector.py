@@ -387,7 +387,7 @@ class BenQProjector(ABC):
         command = command.lower()
 
         if not self.supports_command(command):
-            logger.warn("Command %s not supported", command)
+            logger.warning("Command %s not supported", command)
             return None
 
         if self._connect() is False:
@@ -544,12 +544,12 @@ class BenQProjector(ABC):
 
         if response in ["*unsupported item#", "unsupported item"]:
             if not self._interactive:
-                logger.warn("Command %s unsupported item", _command)
+                logger.warning("Command %s unsupported item", _command)
             raise UnsupportedItemError(command, action)
 
         if response in ["*block item#", "block item"]:
             if not self._interactive:
-                logger.warn("Command %s blocked item", _command)
+                logger.warning("Command %s blocked item", _command)
             raise BlockedItemError(command, action)
 
         logger.debug("Raw response: '%s'", response)
