@@ -5,6 +5,7 @@ Created on 25 Aug 2023
 
 @author: Rogier van Staveren
 """
+
 import logging
 import telnetlib
 from abc import ABC, abstractmethod
@@ -20,7 +21,7 @@ _TELNET_TIMEOUT = 1.0
 class BenQConnectionError(Exception):
     """
     BenQ Connection Error.
-    
+
     When an error occurs while connecting to the BenQ Projector.
     """
 
@@ -214,7 +215,7 @@ class BenQTelnetConnection(BenQConnection):
             if self._connection is None:
                 connection = telnetlib.Telnet(self._host, self._port, _TELNET_TIMEOUT)
                 self._connection = connection
-    
+
             return True
         except (OSError, TimeoutError) as ex:
             raise BenQConnectionError(str(ex)) from ex

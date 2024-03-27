@@ -3,6 +3,7 @@ Created on 27 Nov 2022
 
 @author: Rogier van Staveren
 """
+
 import argparse
 import json
 import logging
@@ -18,7 +19,7 @@ _LOGGER = logging.getLogger(__name__)
 if __name__ == "__main__":
     # Read command line arguments
     argparser = argparse.ArgumentParser()
-    
+
     subparsers = argparser.add_subparsers()
 
     serial_parser = subparsers.add_parser("serial")
@@ -42,9 +43,9 @@ if __name__ == "__main__":
     else:
         logging.basicConfig(format="%(message)s", level=logging.INFO)
 
-    if 'serial_port' in args:
+    if "serial_port" in args:
         projector = BenQProjectorSerial(args.serial_port, args.baud)
-    elif 'host' in args:
+    elif "host" in args:
         projector = BenQProjectorTelnet(args.host, args.port)
 
     if not projector.connect():

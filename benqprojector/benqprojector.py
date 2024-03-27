@@ -5,6 +5,7 @@ Created on 27 Nov 2022
 
 @author: Rogier van Staveren
 """
+
 import importlib.resources
 import json
 import logging
@@ -71,7 +72,9 @@ class UnsupportedItemError(BenQProjectorError):
     """
 
     def __str__(self):
-        return f"Unsupported item for command '{self.command}' and action '{self.action}'"
+        return (
+            f"Unsupported item for command '{self.command}' and action '{self.action}'"
+        )
 
 
 class BlockedItemError(BenQProjectorError):
@@ -109,7 +112,10 @@ class ResponseTimeoutError(BenQProjectorError, TimeoutError):
     """
 
     def __str__(self):
-        return f"Response timeout for command '{self.command}' and action '{self.action}'"
+        return (
+            f"Response timeout for command '{self.command}' and action '{self.action}'"
+        )
+
 
 class PromptTimeoutError(ResponseTimeoutError):
     """
@@ -120,6 +126,7 @@ class PromptTimeoutError(ResponseTimeoutError):
 
     def __str__(self):
         return f"Prompt timeout for command '{self.command}' and action '{self.action}'"
+
 
 class TooBusyError(BenQProjectorError):
     """
@@ -228,12 +235,17 @@ class BenQProjector(ABC):
 
     def get_config(self, key):
         if not self.projector_config_all:
-            with importlib.resources.open_text("benqprojector.configs", "all.json") as file:
+            with importlib.resources.open_text(
+                "benqprojector.configs", "all.json"
+            ) as file:
                 self.projector_config_all = json.load(file)
 
         if not self.projector_config and self.model:
             try:
-                model_filename = "".join(c if c.isalnum() or c in '._-' else "_" for c in self.model) + ".json"
+                model_filename = (
+                    "".join(c if c.isalnum() or c in "._-" else "_" for c in self.model)
+                    + ".json"
+                )
                 with importlib.resources.open_text(
                     "benqprojector.configs", model_filename
                 ) as file:
@@ -270,7 +282,9 @@ class BenQProjector(ABC):
             return True
 
         if not self.model:
-            with importlib.resources.open_text("benqprojector.configs", "minimal.json") as file:
+            with importlib.resources.open_text(
+                "benqprojector.configs", "minimal.json"
+            ) as file:
                 self.projector_config = json.load(file)
 
         power = None
@@ -279,16 +293,21 @@ class BenQProjector(ABC):
             if power is None:
                 logger.error("Failed to retrieve projector power state.")
         except PromptTimeoutError as ex:
-            logger.error("Failed to get projector command prompt, is your projector properly connected?")
+            logger.error(
+                "Failed to get projector command prompt, is your projector properly connected?"
+            )
             return False
         except BlockedItemError as ex:
-            logger.error("Unable to retrieve projector power state, is projector powering down? %s", ex)
+            logger.error(
+                "Unable to retrieve projector power state, is projector powering down? %s",
+                ex,
+            )
         except EmptyResponseError as ex:
             logger.warning(ex)
         except BenQProjectorError as ex:
             logger.error("Unable to retrieve projector power state: %s", ex)
             return False
-        
+
         model = None
         try:
             model = self._send_command("modelname")
@@ -301,11 +320,17 @@ class BenQProjector(ABC):
             # W1070/W1250 does not seem to return projector model when off, but gives
             # an blocked item error. Maybe there are other models with the same problem?
             if power == "off":
-                logger.error("Unable to retrieve projector model while projector is %s: %s", power, ex)
+                logger.error(
+                    "Unable to retrieve projector model while projector is %s: %s",
+                    power,
+                    ex,
+                )
             else:
                 # It could also be that the projector is powering down
                 logger.error(
-                    "Unable to retrieve projector model while projector is %s, is projector powering down? %s", power, ex
+                    "Unable to retrieve projector model while projector is %s, is projector powering down? %s",
+                    power,
+                    ex,
                 )
 
         if model is not None and model != self.model:
