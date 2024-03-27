@@ -491,7 +491,7 @@ class BenQProjector(ABC):
             elif response.strip(string.whitespace + "\x00") == b">":
                 pass
             else:
-                logger.error("Unexpected response: %s", response)
+                logger.warning("Unexpected response: %s", response)
 
             if (datetime.now() - start_time).total_seconds() > 1:
                 raise PromptTimeoutError()
@@ -1062,7 +1062,7 @@ class BenQProjector(ABC):
                 self.power_status == self.POWERSTATUS_POWERINGOFF
                 and (time.time() - self._power_timestamp) <= self._poweroff_time
             ):
-                logger.error("Projector still powering off")
+                logger.warning("Projector still powering off")
                 return False
             self.power_status = self.POWERSTATUS_OFF
             self._power_timestamp = None
@@ -1107,7 +1107,7 @@ class BenQProjector(ABC):
                 self.power_status == self.POWERSTATUS_POWERINGON
                 and (time.time() - self._power_timestamp) <= self._poweron_time
             ):
-                logger.error("Projector still powering on")
+                logger.warning("Projector still powering on")
                 return False
             self.power_status = self.POWERSTATUS_ON
             self._power_timestamp = None
