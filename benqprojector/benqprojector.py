@@ -315,7 +315,7 @@ class BenQProjector(ABC):
         except IllegalFormatError as ex:
             # W1000 does not seem to return projector model, but gives an illegal
             # format error. Maybe there are other models with the same problem?
-            logger.error("Unable to retrieve projector model", ex)
+            logger.error("Unable to retrieve projector model")
         except BlockedItemError as ex:
             # W1070/W1250 does not seem to return projector model when off, but gives
             # an blocked item error. Maybe there are other models with the same problem?
