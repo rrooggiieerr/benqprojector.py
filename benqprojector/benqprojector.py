@@ -10,6 +10,7 @@ import importlib.resources
 import json
 import logging
 import re
+import string
 import sys
 import time
 from abc import ABC
@@ -485,9 +486,9 @@ class BenQProjector(ABC):
                 self.connection.flush()
             elif response[-1:] == b">":
                 return True
-            elif response.strip() == b"":
+            elif response.strip(string.whitespace + "\x00") == b"":
                 pass
-            elif response.strip() == b">":
+            elif response.strip(string.whitespace + "\x00") == b">":
                 pass
             else:
                 logger.error("Unexpected response: %s", response)
@@ -509,7 +510,7 @@ class BenQProjector(ABC):
                 if any(c in _response for c in [b"\n", b"\r", b"\x00"]):
                     response = response.decode()
                     # Cleanup response
-                    response = response.strip(" \n\r\x00")
+                    response = response.strip(string.whitespace + "\x00")
                     logger.debug("Response: %s", response)
 
                     return response
@@ -560,7 +561,7 @@ class BenQProjector(ABC):
         response: str = matches.group(2)
 
         # Strip any spaces from the response
-        response = response.strip()
+        response = response.strip(string.whitespace + "\x00")
 
         logger.debug("Processed response: %s", response)
 
