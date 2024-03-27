@@ -125,7 +125,7 @@ class TooBusyError(BenQProjectorError):
     """
     Too busy error.
 
-    If the serial connection is to busy with processing other commands.
+    If the connection is to busy with processing other commands.
     """
 
     def __str__(self):
@@ -139,6 +139,7 @@ class BenQProjector(ABC):
 
     _connection = None
     _busy = False
+    _init: bool = True
 
     model = None
     _mac = None
@@ -250,6 +251,7 @@ class BenQProjector(ABC):
 
     def _connect(self) -> bool:
         if self._connection and not self._connection.is_open:
+            logger.info("Connecting to %s", self._connection)
             self._connection.open()
 
         if self._connection and self._connection.is_open:
@@ -263,6 +265,9 @@ class BenQProjector(ABC):
         """
         if not self._connect():
             return False
+
+        if not self._init:
+            return True
 
         if not self.model:
             with importlib.resources.open_text("benqprojector.configs", "minimal.json") as file:
@@ -278,6 +283,8 @@ class BenQProjector(ABC):
             return False
         except BlockedItemError as ex:
             logger.error("Unable to retrieve projector power state, is projector powering down? %s", ex)
+        except EmptyResponseError as ex:
+            logger.warning(ex)
         except BenQProjectorError as ex:
             logger.error("Unable to retrieve projector power state: %s", ex)
             return False
@@ -331,6 +338,8 @@ class BenQProjector(ABC):
 
         self.update_power()
 
+        self._init = False
+
         return True
 
     def disconnect(self):
@@ -363,7 +372,6 @@ class BenQProjector(ABC):
         start_time = datetime.now()
         while self._busy:
             if (datetime.now() - start_time).total_seconds() > _BUSY_TIMEOUT:
-                logger.error("Too busy to send %s=%s", command, action)
                 raise TooBusyError(command, action)
             logger.debug("Busy")
             time.sleep(0.05)
@@ -380,7 +388,10 @@ class BenQProjector(ABC):
             previous_response = None
             while True:
                 if empty_line_count > 5:
-                    logger.error("More than 5 empty responses")
+                    if self._init:
+                        logger.error(
+                            "More than 5 empty responses, is your cable right?"
+                        )
                     if echo_received and previous_response:
                         # It's possible that the previous response is
                         # misinterpreted as being the command echo while it
@@ -480,7 +491,7 @@ class BenQProjector(ABC):
                 last_response = datetime.now()
 
             if (datetime.now() - last_response).total_seconds() > _RESPONSE_TIMEOUT:
-                logger.error("Timeout while waiting for response")
+                logger.warning("Timeout while waiting for response")
                 raise ResponseTimeoutError()
 
             logger.debug("Waiting for response")
@@ -550,7 +561,6 @@ class BenQProjector(ABC):
         start_time = datetime.now()
         while self._busy:
             if (datetime.now() - start_time).total_seconds() > _BUSY_TIMEOUT:
-                logger.error("Too busy to send %s", command)
                 raise TooBusyError(command)
             logger.debug("Busy")
             time.sleep(0.05)
