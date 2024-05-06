@@ -8,10 +8,10 @@
 [![BuyMeCoffee][buymecoffee-shield]][buymecoffee]
 [![Patreon][patreon-shield]][patreon]
 
-# Introduction
+## Introduction
 
 Python library to control BenQ projectors over the serial interface or serial to network bridges
-like esp-link.
+like [esp-link](https://github.com/jeelabs/esp-link).
 
 BenQ projectors and flat pannels with a serial port can support one of three protocols. This plugin
 supports projectors which are of the L, P, T, W and X series but probably also others.
