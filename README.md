@@ -14,7 +14,7 @@
 Python library to control BenQ projectors over the serial interface or serial to network bridges
 like [esp-link](https://github.com/jeelabs/esp-link).
 
-BenQ projectors and flat pannels with a serial port can support one of three protocols. This plugin
+BenQ projectors and flat panels with a serial port can support one of three protocols. This plugin
 supports projectors which are of the L, P, T, W and X series but probably also others.
 
 ## Features
@@ -49,7 +49,7 @@ Example of a serial to network bridge using a serial to TTL converter and a Wemo
 
 <img src="https://raw.githubusercontent.com/rrooggiieerr/benqprojector.py/main/serial%20to%20network%20bridge.png">
 
-It has to be said that a direct serial conection to the projector is much more responsive than
+It has to be said that a direct serial connection to the projector is much more responsive than
 using a network connection, at least when using a serial to network bridge. Maybe this is different
 on a native networked BenQ projector or using ethernet instead of WiFi.
 
@@ -69,7 +69,7 @@ The following projectors are known to work:
 * W1110
 * X3000i
 
-The following projectors are not tested but use te same protocol according to the documentation:
+The following projectors are not tested but use the same protocol according to the documentation:
 
 Others in the L, P, T, W and X Series
 
