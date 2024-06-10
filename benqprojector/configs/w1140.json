@@ -1,0 +1,69 @@
+{
+	"commands": [
+		"3d",
+		"appmod",
+		"asp",
+		"baud",
+		"bgain",
+		"blank",
+		"boffset",
+		"bri",
+		"con",
+		"ct",
+		"directpower",
+		"gamma",
+		"ggain",
+		"goffset",
+		"hdrbri",
+		"highaltitude",
+		"hkeystone",
+		"lampcustom",
+		"lampm",
+		"led",
+		"ltim",
+		"mcufwversion",
+		"menuposition",
+		"modelname",
+		"mute",
+		"pow",
+		"pp",
+		"qas",
+		"rgain",
+		"roffset",
+		"scalerfwversion",
+		"sharp",
+		"sour",
+		"sysfwversion",
+		"tint",
+		"vkeystone",
+		"vol"
+	],
+	"video_sources": [
+		"hdmi",
+		"hdmi2"
+	],
+	"audio_sources": [],
+	"picture_modes": [],
+	"color_temperatures": [],
+	"aspect_ratios": [],
+	"projector_positions": [
+		"ft",
+		"re",
+		"rc",
+		"fc"
+	],
+	"lamp_modes": [
+		"lnor",
+		"eco",
+		"seco"
+	],
+	"3d_modes": [],
+	"menu_positions": [
+		"center",
+		"tl",
+		"tr",
+		"br",
+		"bl"
+	]
+}
+
