@@ -251,7 +251,11 @@ class BenQProjector(ABC):
                     "benqprojector.configs", model_filename
                 ) as file:
                     self.projector_config = json.load(file)
+                logger.info("Using projector config %s for %s", file.name, model_filename)
             except FileNotFoundError:
+                # Avoid warning when model is not found - this message would be repeated multiple times.  For now, if
+                # it doesnt log 'Using projector config' then you can assume it is using the generic 'all' config
+                # logger.warn("Failed to find specific projector config for %s", model_filename)
                 pass
 
         if self.projector_config:
