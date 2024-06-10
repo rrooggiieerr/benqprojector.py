@@ -15,4 +15,5 @@ from .benqprojector import (
     BenQProjector,
     BenQProjectorSerial,
     BenQProjectorTelnet,
+    DEFAULT_PORT,
 )

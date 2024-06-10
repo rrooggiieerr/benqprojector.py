@@ -17,6 +17,8 @@ logger = logging.getLogger(__name__)
 _SERIAL_TIMEOUT = 0.1
 _TELNET_TIMEOUT = 1.0
 
+DEFAULT_PORT = 8000
+
 
 class BenQConnectionError(Exception):
     """
@@ -200,7 +202,7 @@ class BenQTelnetConnection(BenQConnection):
 
     _connection = None
 
-    def __init__(self, host: str, port: int):
+    def __init__(self, host: str, port: int = DEFAULT_PORT):
         assert host is not None
         assert port is not None
 

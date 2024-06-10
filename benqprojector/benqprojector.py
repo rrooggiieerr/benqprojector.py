@@ -16,11 +16,12 @@ import time
 from abc import ABC
 from datetime import datetime
 
-from benqprojector.benqconnection import (
+from .benqconnection import (
     BenQConnection,
     BenQConnectionError,
     BenQSerialConnection,
     BenQTelnetConnection,
+    DEFAULT_PORT,
 )
 
 logger = logging.getLogger(__name__)
@@ -1232,7 +1233,7 @@ class BenQProjectorTelnet(BenQProjector):
     def __init__(
         self,
         host: str,
-        port: int = 8000,
+        port: int = DEFAULT_PORT,
         model_hint: str = None,
         strict_validation: bool = False,
     ) -> None:
