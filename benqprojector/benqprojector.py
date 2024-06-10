@@ -241,7 +241,7 @@ class BenQProjector(ABC):
             ) as file:
                 self.projector_config_all = json.load(file)
 
-        if not self.projector_config and self.model:
+        if ( self.projector_config is None ) and self.model:
             try:
                 model_filename = (
                     "".join(c if c.isalnum() or c in "._-" else "_" for c in self.model)
@@ -251,8 +251,12 @@ class BenQProjector(ABC):
                     "benqprojector.configs", model_filename
                 ) as file:
                     self.projector_config = json.load(file)
+                logger.info("Using projector config %s for %s", file.name, model_filename)
             except FileNotFoundError:
-                pass
+                logger.warn("Failed to find specific projector config for %s", model_filename)
+                # Set an empty config so that we do not attempt to reload this file every time.  When commands
+                # are not found in the specific config, we will fall back to the generic 'all' config
+                self.projector_config = {}
 
         if self.projector_config:
             value = self.projector_config.get(key)
