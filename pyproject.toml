@@ -1,36 +1,58 @@
 [build-system]
-requires = ["setuptools>=61.0"]
-build-backend = "setuptools.build_meta"
+requires = ["hatchling>=1.24", "hatch-vcs"]
+build-backend = "hatchling.build"
+
+[tool.hatch.build.hooks.vcs]
+version-file = "benqprojector/_version.py"
+
+[tool.hatch.version]
+source = "vcs"
 
 [project]
 name = "benqprojector"
-version = "0.0.13.7"
+dynamic = ["version"]
 license = {text = "Apache-2.0"}
 authors = [
-    { name="Rogier van Staveren" }
+    { name="Rogier van Staveren", email="rogier@batoid.com" }
 ]
 description = "Library to control BenQ projectors."
 readme = "README.md"
-requires-python = ">=3.7"
+requires-python = ">=3.11"
 classifiers = [
-    "Programming Language :: Python :: 3",
+    "Programming Language :: Python :: 3.11",
+    "Programming Language :: Python :: 3.12",
     "Intended Audience :: Developers",
     "License :: OSI Approved :: Apache Software License",
-    "Operating System :: OS Independent",
+    "Operating System :: POSIX",
+    "Operating System :: MacOS :: MacOS X",
+    "Topic :: Software Development :: Libraries :: Python Modules",
+    "Development Status :: 4 - Beta",
+    "Topic :: Home Automation"
 ]
 dependencies = [
-    "pyserial>=3.4"
+    "pyserial>=3.5"
 ]
 
 [project.urls]
-"Homepage" = "https://github.com/rrooggiieerr/benqprojector.py"
-"Bug Tracker" = "https://github.com/rrooggiieerr/benqprojector.py/issues"
-
-[tool.black]
-target-version = ["py39", "py310"]
-exclude = 'generated'
+Homepage = "https://github.com/rrooggiieerr/benqprojector.py"
+Issues = "https://github.com/rrooggiieerr/benqprojector.py/issues"
 
 [tool.isort]
 # https://github.com/PyCQA/isort/wiki/isort-Settings
 profile = "black"
+skip = "benqprojector/_version.py"
 
+[tool.black]
+exclude = "benqprojector/_version.py"
+
+[tool.pylint]
+ignore = "_version.py"
+recursive = "y"
+
+[tool.mypy]
+python_version = "3.11"
+mypy_path = "benqprojector"
+
+[[tool.mypy.overrides]]
+module = ["serial.*", "*._version"]
+ignore_missing_imports = true
