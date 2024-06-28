@@ -6,16 +6,17 @@ Created on 25 Aug 2023
 @author: Rogier van Staveren
 """
 
+import asyncio
 import logging
-import telnetlib
 from abc import ABC, abstractmethod
 
 import serial
+import serial_asyncio_fast as serial_asyncio
 
 logger = logging.getLogger(__name__)
 
 _SERIAL_TIMEOUT = 0.1
-_TELNET_TIMEOUT = 1.0
+_TELNET_TIMEOUT = 0.1
 
 DEFAULT_PORT = 8000
 
@@ -28,73 +29,120 @@ class BenQConnectionError(Exception):
     """
 
 
+class BenQConnectionTimeoutError(BenQConnectionError):
+    """
+    BenQ Connection Timeout Error.
+    """
+
+
 class BenQConnection(ABC):
     """
     Abstract class on which the different connection types are build.
     """
 
-    is_open: bool = None
+    _reader: asyncio.StreamReader = None
+    _writer: asyncio.StreamWriter = None
+    _read_timeout = None
 
     @abstractmethod
-    def open(self) -> bool:
+    async def open(self) -> bool:
         """
         Opens the connection to the BenQ projector.
         """
         raise NotImplementedError
 
-    @abstractmethod
-    def close(self) -> bool:
+    def is_open(self):
+        if self._writer is not None:
+            return True
+
+        return False
+
+    async def close(self) -> bool:
         """
         Closes the connection to the BenQ projector.
         """
-        raise NotImplementedError
+        if self.is_open():
+            try:
+                self._writer.close()
+                await self._writer.wait_closed()
+            except ConnectionResetError as ex:
+                logger.error(ex)
 
-    @abstractmethod
-    def reset(self) -> bool:
-        """
-        Resets the input and output buffers of the connection.
-        """
-        raise NotImplementedError
+            self._reader = None
+            self._writer = None
 
-    @abstractmethod
-    def read(self, size: int = 1) -> bytes:
+        if not self.is_open():
+            logger.debug("Connection closed")
+            return True
+
+        logger.error("Failed to close connection")
+        return False
+
+    async def reset(self) -> bool:
+        await self.read(-1)
+        await self._writer.drain()
+        return True
+
+    async def read(self, size: int = 1) -> bytes:
         """
         Read size bytes from the connection.
         """
-        raise NotImplementedError
+        if self._reader.at_eof():
+            return b""
 
-    @abstractmethod
-    def readline(self) -> bytes:
+        try:
+            return await asyncio.wait_for(
+                self._reader.read(size), timeout=self._read_timeout
+            )
+        except TimeoutError:
+            return b""
+
+    async def readline(self) -> bytes:
         """
         Reads a line from the connection.
         """
-        raise NotImplementedError
+        if self._reader.at_eof():
+            return b""
 
-    def readlines(self) -> list[bytes]:
+        try:
+            return await asyncio.wait_for(
+                self._reader.readline(), timeout=self._read_timeout
+            )
+        except TimeoutError:
+            return b""
+
+    async def readlines(self) -> list[bytes]:
         """
         Reads all lines from the connection.
         """
         lines = []
 
         while True:
-            line = self.readline()
+            line = await self.readline()
             if not line:
                 break
             lines.append(line)
 
         return lines
 
-    @abstractmethod
-    def write(self, data: bytes) -> int:
+    async def write(self, data: bytes) -> int:
         """
         Output the given string over the connection.
         """
-        raise NotImplementedError
+        try:
+            self._writer.write(data)
+            await self._writer.drain()
 
-    def flush(self) -> None:
+            return len(data)
+        except ConnectionResetError as ex:
+            await self.close()
+            raise BenQConnectionError(str(ex)) from ex
+
+    async def flush(self) -> None:
         """
         Flush write buffers, if applicable.
         """
+        # await self.read(-1)
 
 
 class BenQSerialConnection(BenQConnection):
@@ -102,9 +150,10 @@ class BenQSerialConnection(BenQConnection):
     Class to handle the serial connection type.
     """
 
-    _connection = None
+    _read_timeout = _SERIAL_TIMEOUT
 
     def __init__(self, serial_port: str, baud_rate: int):
+        super().__init__()
         assert serial_port is not None
 
         self._serial_port = serial_port
@@ -113,86 +162,25 @@ class BenQSerialConnection(BenQConnection):
     def __str__(self):
         return self._serial_port
 
-    def open(self) -> bool:
+    async def open(self) -> bool:
         try:
-            if self._connection is None:
-                connection = serial.Serial(
-                    port=self._serial_port,
-                    baudrate=self._baud_rate,
-                    bytesize=serial.EIGHTBITS,
-                    parity=serial.PARITY_NONE,
-                    stopbits=serial.STOPBITS_ONE,
-                    timeout=_SERIAL_TIMEOUT,
+            if not self.is_open():
+                self._reader, self._writer = (
+                    await serial_asyncio.open_serial_connection(
+                        url=self._serial_port,
+                        baudrate=self._baud_rate,
+                        bytesize=serial.EIGHTBITS,
+                        parity=serial.PARITY_NONE,
+                        stopbits=serial.STOPBITS_ONE,
+                        timeout=_SERIAL_TIMEOUT,
+                    )
                 )
-
-                # Open the connection
-                if not connection.is_open:
-                    connection.open()
-
-                self._connection = connection
-            elif not self._connection.is_open:
-                # Try to repair the connection
-                self._connection.open()
-
-            if self._connection.is_open:
-                return True
-
-            return False
-        except serial.SerialException as ex:
-            raise BenQConnectionError(str(ex)) from ex
-
-    @property
-    def is_open(self):
-        if self._connection:
-            return self._connection.is_open
-
-        return False
-
-    def close(self) -> bool:
-        if self._connection is not None:
-            self._connection.close()
-            self._connection = None
-
-        return True
-
-    def reset(self) -> bool:
-        try:
-            self._connection.reset_input_buffer()
-            self._connection.reset_output_buffer()
 
             return True
         except serial.SerialException as ex:
             raise BenQConnectionError(str(ex)) from ex
 
-    def read(self, size: int = 1) -> bytes:
-        try:
-            return self._connection.read(size)
-        except serial.SerialException as ex:
-            raise BenQConnectionError(str(ex)) from ex
-
-    def readline(self) -> bytes:
-        try:
-            return self._connection.readline()
-        except serial.SerialException as ex:
-            raise BenQConnectionError(str(ex)) from ex
-
-    def readlines(self) -> bytes:
-        try:
-            return self._connection.readlines()
-        except serial.SerialException as ex:
-            raise BenQConnectionError(str(ex)) from ex
-
-    def write(self, data: bytes) -> int:
-        try:
-            return self._connection.write(data)
-        except serial.SerialException as ex:
-            raise BenQConnectionError(str(ex)) from ex
-
-    def flush(self) -> None:
-        try:
-            self._connection.flush()
-        except serial.SerialException as ex:
-            raise BenQConnectionError(str(ex)) from ex
+        return False
 
 
 class BenQTelnetConnection(BenQConnection):
@@ -200,9 +188,10 @@ class BenQTelnetConnection(BenQConnection):
     Class to handle the telnet connection type.
     """
 
-    _connection = None
+    _read_timeout = _TELNET_TIMEOUT
 
     def __init__(self, host: str, port: int = DEFAULT_PORT):
+        super().__init__()
         assert host is not None
         assert port is not None
 
@@ -212,56 +201,13 @@ class BenQTelnetConnection(BenQConnection):
     def __str__(self):
         return f"{self._host}:{self._port}"
 
-    def open(self) -> bool:
+    async def open(self) -> bool:
         try:
-            if self._connection is None:
-                connection = telnetlib.Telnet(self._host, self._port, _TELNET_TIMEOUT)
-                self._connection = connection
+            if not self.is_open():
+                self._reader, self._writer = await asyncio.wait_for(
+                    asyncio.open_connection(self._host, self._port), timeout=10
+                )
 
             return True
-        except (OSError, TimeoutError) as ex:
-            raise BenQConnectionError(str(ex)) from ex
-
-    @property
-    def is_open(self):
-        if self._connection:
-            return True
-
-        return False
-
-    def close(self) -> bool:
-        if self._connection is not None:
-            self._connection.close()
-            self._connection = None
-
-        return True
-
-    def reset(self) -> bool:
-        try:
-            self._connection.read_very_eager()
-
-            return True
-        except EOFError as ex:
-            logger.error("Connection lost: %s", ex)
-            self.close()
-            raise BenQConnectionError(str(ex)) from ex
-
-    def read(self, size: int = 1) -> bytes:
-        raise NotImplementedError
-
-    def readline(self) -> bytes:
-        try:
-            # A short timeout makes the connection a lot more responsive
-            return self._connection.read_until(b"\n", _TELNET_TIMEOUT / 5)
-        except EOFError as ex:
-            logger.error("Connection lost: %s", ex)
-            self.close()
-            raise BenQConnectionError(str(ex)) from ex
-
-    def write(self, data: bytes) -> int:
-        try:
-            self._connection.write(data)
-        except OSError as ex:
-            raise BenQConnectionError(str(ex)) from ex
-
-        return len(data)
+        except TimeoutError as ex:
+            raise BenQConnectionTimeoutError(str(ex)) from ex

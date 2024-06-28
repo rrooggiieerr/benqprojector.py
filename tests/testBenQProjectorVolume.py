@@ -1,67 +1,65 @@
+# pylint: disable=R0801
+# pylint: disable=invalid-name
+# pylint: disable=missing-class-docstring
+# pylint: disable=missing-function-docstring
 """
 Created on 27 Nov 2022
 
 @author: Rogier van Staveren
 """
+
 import logging
 import unittest
 
-from benqprojector import BenQProjector
+from benqprojector import BenQProjectorSerial
 
 logger = logging.getLogger(__name__)
-logging.basicConfig(
-    format="%(asctime)s %(levelname)-8s %(message)s", level=logging.DEBUG
-)
 
-serial_port = "/dev/tty.usbserial-10"
+SERIAL_PORT = "/dev/tty.usbserial-10"
+BAUD_RATE = 115200
 
 
-class Test(unittest.TestCase):
+class Test(unittest.IsolatedAsyncioTestCase):
     _projector = None
 
-    def setUp(self):
-        self._projector = BenQProjector(serial_port, 115200)
-        self._projector.connect()
-        self._projector.update()
+    async def asyncSetUp(self):
+        self._projector = BenQProjectorSerial(SERIAL_PORT, BAUD_RATE)
+        await self._projector.connect()
+        await self._projector.update()
 
-    def tearDown(self):
-        self._projector.disconnect()
+    async def asyncTearDown(self):
+        await self._projector.disconnect()
 
-    def test_mute(self):
-        self._projector.unmute()
-        response = self._projector.mute()
+    async def test_mute(self):
+        await self._projector.unmute()
+        response = await self._projector.mute()
         self.assertTrue(response)
 
-    def test_unmute(self):
-        self._projector.mute()
-        response = self._projector.unmute()
+    async def test_unmute(self):
+        await self._projector.mute()
+        response = await self._projector.unmute()
         self.assertTrue(response)
 
-    def test_volume_up(self):
-        self._projector.volume_level(10)
+    async def test_volume_up(self):
+        await self._projector.volume_level(10)
         volume = self._projector.volume
-        response = self._projector.volume_up()
+        response = await self._projector.volume_up()
         self.assertTrue(response)
-        self.assertEquals(volume + 1, self._projector.volume)
+        self.assertEqual(volume + 1, self._projector.volume)
 
-    def test_volume_down(self):
-        self._projector.volume_level(10)
+    async def test_volume_down(self):
+        await self._projector.volume_level(10)
         volume = self._projector.volume
-        response = self._projector.volume_down()
+        response = await self._projector.volume_down()
         self.assertTrue(response)
-        self.assertEquals(volume - 1, self._projector.volume)
+        self.assertEqual(volume - 1, self._projector.volume)
 
-    def test_volume_level_up(self):
-        self._projector.volume_level(0)
-        response = self._projector.volume_level(20)
-        self.assertTrue(response)
-
-    def test_volume_level_down(self):
-        self._projector.volume_level(20)
-        response = self._projector.volume_level(0)
+    async def test_volume_level_up(self):
+        await self._projector.volume_level(0)
+        response = await self._projector.volume_level(20)
         self.assertTrue(response)
 
-
-if __name__ == "__main__":
-    # import sys;sys.argv = ['', 'Test.testName']
-    unittest.main()
+    async def test_volume_level_down(self):
+        await self._projector.volume_level(20)
+        response = await self._projector.volume_level(0)
+        self.assertTrue(response)

@@ -5,56 +5,26 @@ Created on 27 Nov 2022
 """
 
 import argparse
+import asyncio
 import json
 import logging
 import sys
 
 from serial.serialutil import SerialException
 
-from benqprojector import BenQProjectorSerial, BenQProjectorTelnet
+from benqprojector import BenQProjector, BenQProjectorSerial, BenQProjectorTelnet
 
 _LOGGER = logging.getLogger(__name__)
 
 
-if __name__ == "__main__":
-    # Read command line arguments
-    argparser = argparse.ArgumentParser()
-
-    subparsers = argparser.add_subparsers()
-
-    serial_parser = subparsers.add_parser("serial")
-    serial_parser.add_argument("serial_port")
-    serial_parser.add_argument("baud", type=int)
-
-    telnet_parser = subparsers.add_parser("telnet")
-    telnet_parser.add_argument("host")
-    telnet_parser.add_argument("port", type=int)
-
-    argparser.add_argument("action", choices=["status", "on", "off", "examine"])
-    argparser.add_argument("--wait", dest="wait", action="store_true")
-    argparser.add_argument("--debug", dest="debugLogging", action="store_true")
-
-    args = argparser.parse_args()
-
-    if args.debugLogging:
-        logging.basicConfig(
-            format="%(asctime)s %(levelname)-8s %(message)s", level=logging.DEBUG
-        )
-    else:
-        logging.basicConfig(format="%(message)s", level=logging.INFO)
-
-    if "serial_port" in args:
-        projector = BenQProjectorSerial(args.serial_port, args.baud)
-    elif "host" in args:
-        projector = BenQProjectorTelnet(args.host, args.port)
-
-    if not projector.connect():
+async def main(projector: BenQProjector, action: str):
+    if not await projector.connect():
         _LOGGER.error("Failed to connect to BenQ projector")
         sys.exit(1)
 
     try:
-        if args.action == "status":
-            projector.update()
+        if action == "status":
+            await projector.update()
 
             _LOGGER.info("Model: %s", projector.model)
             _LOGGER.info("Position: %s", projector.projector_position)
@@ -90,29 +60,71 @@ if __name__ == "__main__":
                 _LOGGER.info("Muted            : %s", projector.muted)
 
             _LOGGER.info("Supported video sources: %s", projector.video_sources)
-        elif args.action == "on":
-            if projector.turn_on():
+        elif action == "on":
+            if await projector.turn_on():
                 pass
-        elif args.action == "off":
-            if projector.turn_off():
+        elif action == "off":
+            if await projector.turn_off():
                 pass
-        elif args.action == "examine":
+        elif action == "examine":
             _LOGGER.info("Model: %s", projector.model)
             if projector.power_status == projector.POWERSTATUS_OFF:
                 _LOGGER.error("Projector needs to be on to examine it's features.")
                 sys.exit(1)
 
-            config = projector.detect_projector_features()
+            config = await projector.detect_projector_features()
 
             _LOGGER.info("Projector configuration JSON:")
             _LOGGER.info(json.dumps(config, indent="\t"))
     except SerialException as e:
         _LOGGER.error("Failed to connect to BenQ projector, reason: %s", e)
         sys.exit(1)
+    finally:
+        _LOGGER.info("Disconnecting from BenQ projector")
+        await projector.disconnect()
+
+
+if __name__ == "__main__":
+    # Read command line arguments
+    argparser = argparse.ArgumentParser()
+
+    subparsers = argparser.add_subparsers()
+
+    serial_parser = subparsers.add_parser("serial")
+    serial_parser.add_argument("serial_port")
+    serial_parser.add_argument("baud", type=int)
+
+    telnet_parser = subparsers.add_parser("telnet")
+    telnet_parser.add_argument("host")
+    telnet_parser.add_argument("port", type=int)
+
+    argparser.add_argument("action", choices=["status", "on", "off", "examine"])
+    argparser.add_argument("--wait", dest="wait", action="store_true")
+    argparser.add_argument("--debug", dest="debugLogging", action="store_true")
+
+    args = argparser.parse_args()
+
+    if args.debugLogging:
+        logging.basicConfig(
+            format="%(asctime)s %(levelname)-8s %(filename)s:%(lineno)d %(message)s",
+            level=logging.DEBUG,
+        )
+    else:
+        logging.basicConfig(format="%(message)s", level=logging.INFO)
+
+    if "serial_port" in args:
+        projector = BenQProjectorSerial(args.serial_port, args.baud)
+    elif "host" in args:
+        projector = BenQProjectorTelnet(args.host, args.port)
+
+    loop = asyncio.new_event_loop()
+
+    try:
+        asyncio.run(main(projector, args.action))
     except KeyboardInterrupt:
         # Handle keyboard interrupt
         pass
     finally:
-        projector.disconnect()
+        loop.close()
 
     sys.exit(0)

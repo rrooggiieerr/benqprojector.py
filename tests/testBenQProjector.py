@@ -1,62 +1,61 @@
+# pylint: disable=R0801
+# pylint: disable=invalid-name
+# pylint: disable=missing-class-docstring
+# pylint: disable=missing-function-docstring
 """
 Created on 27 Nov 2022
 
 @author: Rogier van Staveren
 """
+
 import logging
 import time
 import unittest
 
-# from benqprojector import BenQProjectorSerial as BenQProjector
-from benqprojector import BenQProjectorTelnet as BenQProjector
+from benqprojector import BenQProjectorSerial
+
+# from benqprojector import BenQProjectorTelnet
 
 logger = logging.getLogger(__name__)
-logging.basicConfig(
-    format="%(asctime)s %(levelname)-8s %(message)s", level=logging.DEBUG
-)
 
-serial_port = "/dev/tty.usbserial-10"
+SERIAL_PORT = "/dev/tty.usbserial-110"
+BAUD_RATE = 115200
 
 
-class Test(unittest.TestCase):
+class Test(unittest.IsolatedAsyncioTestCase):
     _projector = None
 
-    def setUp(self):
-        # self._projector = BenQProjector(serial_port, 115200)
-        self._projector = BenQProjector("rs232-bridge.local")
-        self._projector.connect()
-        self._projector.update()
+    async def asyncSetUp(self):
+        self._projector = BenQProjectorSerial(SERIAL_PORT, BAUD_RATE)
+        # self._projector = BenQProjectorTelnet("rs232-bridge.local")
+        await self._projector.connect()
+        await self._projector.update()
 
-    def tearDown(self):
-        self._projector.disconnect()
+    async def asyncTearDown(self):
+        await self._projector.disconnect()
 
-    # def test_turn_on(self):
-    #     result = self._projector.turn_on()
+    # async def test_turn_on(self):
+    #     result = await self._projector.turn_on()
     #     self.assertTrue(result)
     #     self.assertEquals(self._projector.POWERSTATE_POWERINGON, self._projector.power_state)
 
-    # def test_turn_off(self):
-    #     result = self._projector.turn_off()
+    # async def test_turn_off(self):
+    #     result = await self._projector.turn_off()
     #     self.assertTrue(result)
     #     self.assertEquals(self._projector.POWERSTATE_POWERINGOFF, self._projector.power_state)
 
     # def test_power_on_time(self):
     #     pass
 
-    # def test_power_off_time(self):
+    # async def test_power_off_time(self):
     #     logger.info("Measuring off time")
     #     timestamp = time.time()
-    #     while self._projector.send_command("pow", "off") == "off":
+    #     while await self._projector.send_command("pow", "off") == "off":
     #         time.sleep(1)
-    #     while self._projector.send_command("pow", "on") != "on":
+    #     while await self._projector.send_command("pow", "on") != "on":
     #         time.sleep(1)
     #     off_time = time.time() - timestamp
     #     logger.info("Off time: %s seconds", off_time)
 
     def test_status(self):
         logger.info("Model: %s", self._projector.model)
-
-
-if __name__ == "__main__":
-    # import sys;sys.argv = ['', 'Test.testName']
-    unittest.main()

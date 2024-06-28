@@ -12,8 +12,8 @@ except ModuleNotFoundError:
     pass
 from .benqprojector import (
     BAUD_RATES,
+    DEFAULT_PORT,
     BenQProjector,
     BenQProjectorSerial,
     BenQProjectorTelnet,
-    DEFAULT_PORT,
 )

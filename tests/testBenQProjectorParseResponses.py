@@ -1,27 +1,30 @@
+# pylint: disable=R0801
+# pylint: disable=invalid-name
+# pylint: disable=missing-class-docstring
+# pylint: disable=missing-function-docstring
+# pylint: disable=protected-access
 """
 Created on 27 Nov 2022
 
 @author: Rogier van Staveren
 """
+
 import logging
-import time
 import unittest
 
 from benqprojector import BenQProjector
 
 logger = logging.getLogger(__name__)
-logging.basicConfig(
-    format="%(asctime)s %(levelname)-8s %(message)s", level=logging.DEBUG
-)
 
-serial_port = "/dev/tty.usbserial-10"
+SERIAL_PORT = "/dev/tty.usbserial-10"
+BAUD_RATE = 115200
 
 
 class Test(unittest.TestCase):
     _projector = None
 
     def setUp(self):
-        self._projector = BenQProjector(serial_port, 115200)
+        self._projector = BenQProjector(SERIAL_PORT, BAUD_RATE)
         # Don't need to connect to the projector to test parsing responses
 
     def test_parse_response_w1100_bri(self):

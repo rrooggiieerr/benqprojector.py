@@ -6,6 +6,7 @@ Created on 27 Nov 2022
 @author: Rogier van Staveren
 """
 
+import asyncio
 import importlib.resources
 import json
 import logging
@@ -17,11 +18,11 @@ from abc import ABC
 from datetime import datetime
 
 from .benqconnection import (
+    DEFAULT_PORT,
     BenQConnection,
     BenQConnectionError,
     BenQSerialConnection,
     BenQTelnetConnection,
-    DEFAULT_PORT,
 )
 
 logger = logging.getLogger(__name__)
@@ -31,8 +32,10 @@ BAUD_RATES = [2400, 4800, 9600, 14400, 19200, 38400, 57600, 115200]
 RESPONSE_RE_STRICT = r"^\*([^=]*)=([^#]*)#$"
 RESPONSE_RE_LOSE = r"^\*?([^=]*)=([^#]*)#?$"
 
+WHITESPACE = string.whitespace + "\x00"
+
 _RESPONSE_TIMEOUT = 5.0
-_BUSY_TIMEOUT = 1
+_CONNECTION_LOCK_TIMEOUT = 1
 
 
 class BenQProjectorError(Exception):
@@ -147,7 +150,6 @@ class BenQProjector(ABC):
     """
 
     connection = None
-    busy = False
     _init: bool = True
 
     model = None
@@ -235,6 +237,11 @@ class BenQProjector(ABC):
             # running interactively
             self._interactive = True
 
+        self._connection_lock = asyncio.Lock()
+
+    def busy(self):
+        return self._connection_lock.locked()
+
     def get_config(self, key):
         if not self.projector_config_all:
             with importlib.resources.open_text(
@@ -263,21 +270,21 @@ class BenQProjector(ABC):
         # Fall back to generic config when key can not be found in configuration for model
         return self.projector_config_all.get(key)
 
-    def _connect(self) -> bool:
-        if self.connection and not self.connection.is_open:
+    async def _connect(self) -> bool:
+        if self.connection and not self.connection.is_open():
             logger.info("Connecting to %s", self.connection)
-            self.connection.open()
+            await self.connection.open()
 
-        if self.connection and self.connection.is_open:
+        if self.connection and self.connection.is_open():
             return True
 
         return False
 
-    def connect(self) -> bool:
+    async def connect(self) -> bool:
         """
         Connect to the BenQ projector.
         """
-        if not self._connect():
+        if not await self._connect():
             return False
 
         if not self._init:
@@ -291,7 +298,7 @@ class BenQProjector(ABC):
 
         power = None
         try:
-            power = self._send_command("pow")
+            power = await self._send_command("pow")
             if power is None:
                 logger.error("Failed to retrieve projector power state.")
         except PromptTimeoutError as ex:
@@ -312,7 +319,7 @@ class BenQProjector(ABC):
 
         model = None
         try:
-            model = self._send_command("modelname")
+            model = await self._send_command("modelname")
             assert model is not None, "Failed to retrieve projector model"
         except IllegalFormatError as ex:
             # W1000 does not seem to return projector model, but gives an illegal
@@ -355,7 +362,7 @@ class BenQProjector(ABC):
 
         mac = None
         if self.supports_command("macaddr"):
-            mac = self.send_command("macaddr")
+            mac = await self.send_command("macaddr")
 
         if mac is not None:
             self._mac = mac.lower()
@@ -363,16 +370,16 @@ class BenQProjector(ABC):
 
         logger.info("Device on %s available", self.connection)
 
-        self.update_power()
+        await self.update_power()
 
         self._init = False
 
         return True
 
-    def disconnect(self):
+    async def disconnect(self):
         """Disconnect from the BenQ projector."""
         if self.connection is not None:
-            self.connection.close()
+            await self.connection.close()
 
     def supports_command(self, command) -> bool:
         """
@@ -382,7 +389,7 @@ class BenQProjector(ABC):
         """
         return self._supported_commands is None or command in self._supported_commands
 
-    def _send_command(self, command: str, action: str = "?") -> str:
+    async def _send_command(self, command: str, action: str = "?") -> str:
         """
         Send a command to the BenQ projector.
         """
@@ -392,23 +399,24 @@ class BenQProjector(ABC):
             logger.warning("Command %s not supported", command)
             return None
 
-        if self._connect() is False:
+        if await self._connect() is False:
             logger.error("Connection not available")
             return None
 
-        start_time = datetime.now()
-        while self.busy:
-            if (datetime.now() - start_time).total_seconds() > _BUSY_TIMEOUT:
+        try:
+            locked = await asyncio.wait_for(
+                self._connection_lock.acquire(), timeout=_CONNECTION_LOCK_TIMEOUT
+            )
+            if not locked:
                 raise TooBusyError(command, action)
-            logger.debug("Busy")
-            time.sleep(0.05)
-        self.busy = True
+        except TimeoutError as ex:
+            raise TooBusyError(command, action) from ex
 
         response = None
 
         try:
             _command = f"*{command}={action}#"
-            self._send_raw_command(_command)
+            await self._send_raw_command(_command)
 
             empty_line_count = 0
             echo_received = None
@@ -428,7 +436,7 @@ class BenQProjector(ABC):
                         response = previous_response
                     else:
                         raise EmptyResponseError(command, action)
-                elif (response := self._read_response()) == "":
+                elif (response := await self._read_response()) == "":
                     logger.debug("Empty line")
                     # Empty line
                     empty_line_count += 1
@@ -438,7 +446,7 @@ class BenQProjector(ABC):
                     # to respond after more than 1 empty line.
                     if empty_line_count > 1:
                         # Give the projector some more time to response
-                        time.sleep(0.05)
+                        await asyncio.sleep(0.05)
                     continue
 
                 if response == ">":
@@ -473,23 +481,22 @@ class BenQProjector(ABC):
             )
             return None
         finally:
-            self.busy = False
+            self._connection_lock.release()
 
-    def _wait_for_prompt(self) -> bool:
+    async def _wait_for_prompt(self) -> bool:
         # Clean input buffer
-        self.connection.reset()
+        await self.connection.reset()
 
         start_time = datetime.now()
         while True:
-            response = self.connection.readline()
+            response = await self.connection.read(100)
             if response == b"":
-                self.connection.write(b"\r")
-                self.connection.flush()
+                await self.connection.write(b"\r")
             elif response[-1:] == b">":
                 return True
-            elif response.strip(string.whitespace + "\x00") == b"":
+            elif response.strip(WHITESPACE.encode()) == b"":
                 pass
-            elif response.strip(string.whitespace + "\x00") == b">":
+            elif response.strip(WHITESPACE.encode()) == b">":
                 pass
             else:
                 logger.warning("Unexpected response: %s", response)
@@ -497,21 +504,21 @@ class BenQProjector(ABC):
             if (datetime.now() - start_time).total_seconds() > 1:
                 raise PromptTimeoutError()
 
-            time.sleep(0.05)
+            await asyncio.sleep(0.05)
 
         return False
 
-    def _read_response(self) -> str:
+    async def _read_response(self) -> str:
         response = b""
         last_response = datetime.now()
         while True:
-            _response = self.connection.readline()
+            _response = await self.connection.readline()
             if len(_response) > 0:
                 response += _response
                 if any(c in _response for c in [b"\n", b"\r", b"\x00"]):
                     response = response.decode()
                     # Cleanup response
-                    response = response.strip(string.whitespace + "\x00")
+                    response = response.strip(WHITESPACE)
                     logger.debug("Response: %s", response)
 
                     return response
@@ -522,17 +529,17 @@ class BenQProjector(ABC):
                 raise ResponseTimeoutError()
 
             logger.debug("Waiting for response")
-            time.sleep(0.05)
+            await asyncio.sleep(0.05)
 
-    def _send_raw_command(self, command: str) -> str:
+    async def _send_raw_command(self, command: str) -> str:
         """
         Send a raw command to the BenQ projector.
         """
-        self._wait_for_prompt()
+        await self._wait_for_prompt()
 
         logger.debug("command %s", command)
-        self.connection.write(f"{command}\r".encode("ascii"))
-        self.connection.flush()
+        await self.connection.write(f"{command}\r".encode("ascii"))
+        await self.connection.flush()
 
     def _parse_response(self, command, action, _command, response):
         # Lowercase the response
@@ -562,45 +569,47 @@ class BenQProjector(ABC):
         response: str = matches.group(2)
 
         # Strip any spaces from the response
-        response = response.strip(string.whitespace + "\x00")
+        response = response.strip(WHITESPACE)
 
         logger.debug("Processed response: %s", response)
 
         return response
 
-    def send_command(self, command: str, action: str = "?") -> str:
+    async def send_command(self, command: str, action: str = "?") -> str:
         """
         Send a command to the BenQ projector.
         """
         response = None
 
         try:
-            response = self._send_command(command, action)
+            response = await self._send_command(command, action)
         except BenQProjectorError:
             pass
 
         return response
 
-    def send_raw_command(self, command: str) -> str:
+    async def send_raw_command(self, command: str) -> str:
         """
         Send a raw command to the BenQ projector.
         """
-        start_time = datetime.now()
-        while self.busy:
-            if (datetime.now() - start_time).total_seconds() > _BUSY_TIMEOUT:
+        try:
+            locked = await asyncio.wait_for(
+                self._connection_lock.acquire(), timeout=_CONNECTION_LOCK_TIMEOUT
+            )
+            if not locked:
                 raise TooBusyError(command)
-            logger.debug("Busy")
-            time.sleep(0.05)
-        self.busy = True
+        except TimeoutError as ex:
+            raise TooBusyError(command) from ex
 
         response = None
 
         try:
-            self._send_raw_command(command)
+            await self._send_raw_command(command)
 
             # Read and log the response
-            while _response := self._read_response():
-                logger.debug(response)
+            while _response := await self._read_response():
+                logger.debug(_response)
+                response += _response
         except BenQProjectorError as ex:
             ex.command = command
             raise
@@ -610,11 +619,11 @@ class BenQProjector(ABC):
             )
             return None
         finally:
-            self.busy = False
+            self._connection_lock.release()
 
         return response
 
-    def detect_commands(self):
+    async def detect_commands(self):
         """
         Detects which command are supported by the projector.
 
@@ -642,14 +651,14 @@ class BenQProjector(ABC):
             "focus",
             "error",
         ]
-        # Loop trough all known commands and test if a response is given.
+        # Loop through all known commands and test if a response is given.
         for command in self.projector_config_all.get("commands"):
             if command not in ignore_commands:
                 retries = 0
                 while True:
                     try:
                         try:
-                            response = self._send_command(command)
+                            response = await self._send_command(command)
                             if response is not None:
                                 supported_commands.append(command)
                             else:
@@ -675,7 +684,7 @@ class BenQProjector(ABC):
                         pass
                     finally:
                         # Give the projector some time to process command
-                        time.sleep(0.2)
+                        await asyncio.sleep(0.2)
                     break
         # Set the list of known commands.
         self._supported_commands = supported_commands
@@ -685,7 +694,7 @@ class BenQProjector(ABC):
 
         return self._supported_commands
 
-    def _detect_modes(self, description, command, all_modes):
+    async def _detect_modes(self, description, command, all_modes):
         """
         Detect which modes are supported by the projector.
 
@@ -700,18 +709,18 @@ class BenQProjector(ABC):
             logger.info("Detecting supported video sources")
 
         # Store current mode
-        current_mode = self.send_command(command)
+        current_mode = await self.send_command(command)
         if not self._interactive:
             logger.info("Current %s: %s", description, current_mode)
         if current_mode is None:
             return []
 
         supported_modes = []
-        # Loop trough all known modes and test if a response is given.
+        # Loop through all known modes and test if a response is given.
         for mode in all_modes:
             try:
                 try:
-                    response = self._send_command(command, mode)
+                    response = await self._send_command(command, mode)
                     if response is not None:
                         supported_modes.append(mode)
                     else:
@@ -733,7 +742,7 @@ class BenQProjector(ABC):
                 pass
             finally:
                 # Give the projector some time to process command
-                time.sleep(0.2)
+                await asyncio.sleep(0.2)
 
         # Revert mode back to current mode
         self.send_command(command, current_mode)
@@ -743,94 +752,94 @@ class BenQProjector(ABC):
 
         return supported_modes
 
-    def detect_video_sources(self):
+    async def detect_video_sources(self):
         """
         Detect which video sources are supported by the projector.
         """
-        self.video_sources = self._detect_modes(
+        self.video_sources = await self._detect_modes(
             "video sources", "sour", self.projector_config_all.get("sources")
         )
         return self.video_sources
 
-    def detect_audio_sources(self):
+    async def detect_audio_sources(self):
         """
         Detect which audio sources are supported by the projector.
         """
-        self.audio_sources = self._detect_modes(
+        self.audio_sources = await self._detect_modes(
             "audio sources", "audiosour", self.projector_config_all.get("audio_sources")
         )
         return self.audio_sources
 
-    def detect_picture_modes(self):
+    async def detect_picture_modes(self):
         """
         Detect which picture modes are supported by the projector.
         """
-        self.picture_modes = self._detect_modes(
+        self.picture_modes = await self._detect_modes(
             "picture modes", "appmod", self.projector_config_all.get("picture_modes")
         )
         return self.picture_modes
 
-    def detect_color_temperatures(self):
+    async def detect_color_temperatures(self):
         """
         Detect which color temperatures are supported by the projector.
         """
-        self.color_temperatures = self._detect_modes(
+        self.color_temperatures = await self._detect_modes(
             "color temperatures",
             "ct",
             self.projector_config_all.get("color_temperatures"),
         )
         return self.color_temperatures
 
-    def detect_aspect_ratios(self):
+    async def detect_aspect_ratios(self):
         """
         Detect which aspect ratios are supported by the projector.
         """
-        self.aspect_ratios = self._detect_modes(
+        self.aspect_ratios = await self._detect_modes(
             "aspect ratios", "asp", self.projector_config_all.get("aspect_ratios")
         )
         return self.aspect_ratios
 
-    def detect_projector_positions(self):
+    async def detect_projector_positions(self):
         """
         Detect which projector positions are supported by the projector.
         """
-        self.projector_positions = self._detect_modes(
+        self.projector_positions = await self._detect_modes(
             "projector positions",
             "pp",
             self.projector_config_all.get("projector_positions"),
         )
         return self.projector_positions
 
-    def detect_lamp_modes(self):
+    async def detect_lamp_modes(self):
         """
         Detect which lamp modes are supported by the projector.
         """
-        self.lamp_modes = self._detect_modes(
+        self.lamp_modes = await self._detect_modes(
             "lamp modes", "lampm", self.projector_config_all.get("lamp_modes")
         )
         return self.lamp_modes
 
-    def detect_3d_modes(self):
+    async def detect_3d_modes(self):
         """
         Detect which 3d modes are supported by the projector.
         """
-        self.threed_modes = self._detect_modes(
+        self.threed_modes = await self._detect_modes(
             "3d modes", "3d", self.projector_config_all.get("3d_modes")
         )
         return self.threed_modes
 
-    def detect_menu_positions(self):
+    async def detect_menu_positions(self):
         """
         Detect which menu positions are supported by the projector.
         """
-        self.menu_positions = self._detect_modes(
+        self.menu_positions = await self._detect_modes(
             "menu positions",
             "menuposition",
             self.projector_config_all.get("menu_positions"),
         )
         return self.menu_positions
 
-    def detect_projector_features(self):
+    async def detect_projector_features(self):
         """
         Detect which features are supported by the projector.
         """
@@ -840,31 +849,31 @@ class BenQProjector(ABC):
 
         config = {}
 
-        config["commands"] = self.detect_commands()
-        time.sleep(2)  # Give the projector some time to settle
-        config["video_sources"] = self.detect_video_sources()
-        time.sleep(2)
-        config["audio_sources"] = self.detect_audio_sources()
-        time.sleep(2)
-        config["picture_modes"] = self.detect_picture_modes()
-        time.sleep(2)
-        config["color_temperatures"] = self.detect_color_temperatures()
-        time.sleep(2)
-        config["aspect_ratios"] = self.detect_aspect_ratios()
-        time.sleep(2)
-        config["projector_positions"] = self.detect_projector_positions()
-        time.sleep(2)
-        config["lamp_modes"] = self.detect_lamp_modes()
-        time.sleep(2)
-        config["3d_modes"] = self.detect_3d_modes()
-        time.sleep(2)
-        config["menu_positions"] = self.detect_menu_positions()
+        config["commands"] = await self.detect_commands()
+        await asyncio.sleep(2)  # Give the projector some time to settle
+        config["video_sources"] = await self.detect_video_sources()
+        await asyncio.sleep(2)
+        config["audio_sources"] = await self.detect_audio_sources()
+        await asyncio.sleep(2)
+        config["picture_modes"] = await self.detect_picture_modes()
+        await asyncio.sleep(2)
+        config["color_temperatures"] = await self.detect_color_temperatures()
+        await asyncio.sleep(2)
+        config["aspect_ratios"] = await self.detect_aspect_ratios()
+        await asyncio.sleep(2)
+        config["projector_positions"] = await self.detect_projector_positions()
+        await asyncio.sleep(2)
+        config["lamp_modes"] = await self.detect_lamp_modes()
+        await asyncio.sleep(2)
+        config["3d_modes"] = await self.detect_3d_modes()
+        await asyncio.sleep(2)
+        config["menu_positions"] = await self.detect_menu_positions()
 
         return config
 
-    def update_power(self) -> bool:
+    async def update_power(self) -> bool:
         """Update the current power state."""
-        response = self.send_command("pow")
+        response = await self.send_command("pow")
         if response is None:
             if self.power_status == self.POWERSTATUS_POWERINGON:
                 logger.debug("Projector still powering on")
@@ -901,14 +910,14 @@ class BenQProjector(ABC):
         # self.power_status = self.POWERSTATUS_UNKNOWN
         return False
 
-    def update_volume(self) -> bool:
+    async def update_volume(self) -> bool:
         """Update the current volume state."""
         if self.supports_command("mute"):
-            self.muted = self.send_command("mute") == "on"
+            self.muted = await self.send_command("mute") == "on"
             logger.debug("Muted: %s", self.muted)
 
         if self.supports_command("vol"):
-            volume = self.send_command("vol")
+            volume = await self.send_command("vol")
             if volume is not None:
                 try:
                     volume = int(volume)
@@ -918,32 +927,32 @@ class BenQProjector(ABC):
 
             self.volume = volume
 
-    def update_video_source(self) -> bool:
+    async def update_video_source(self) -> bool:
         """Update the current video source state."""
         if self.supports_command("sour"):
-            self.video_source = self.send_command("sour")
+            self.video_source = await self.send_command("sour")
             logger.debug("Video source: %s", self.video_source)
 
-    def update(self) -> bool:
+    async def update(self) -> bool:
         """
         Update all known states.
 
         This takes quite a lot of time.
         """
-        if not self.update_power():
+        if not await self.update_power():
             return False
 
         if self.supports_command("directpower"):
-            self.direct_power_on = self.send_command("directpower") == "on"
+            self.direct_power_on = await self.send_command("directpower") == "on"
             logger.debug("Direct power on: %s", self.direct_power_on)
 
         if self.supports_command("ltim"):
-            response = self.send_command("ltim")
+            response = await self.send_command("ltim")
             if response is not None:
                 self.lamp_time = int(response)
 
         if self.supports_command("ltim2"):
-            response = self.send_command("ltim2")
+            response = await self.send_command("ltim2")
             if response is not None:
                 self.lamp2_time = int(response)
 
@@ -951,7 +960,7 @@ class BenQProjector(ABC):
             # Commands which only work when powered on or off, not when
             # powering on or off
             if self.supports_command("pp"):
-                self.projector_position = self.send_command("pp")
+                self.projector_position = await self.send_command("pp")
 
         if self.power_status in [self.POWERSTATUS_POWERINGOFF, self.POWERSTATUS_OFF]:
             self.threed_mode = None
@@ -974,76 +983,76 @@ class BenQProjector(ABC):
         elif self.power_status in [self.POWERSTATUS_POWERINGON, self.POWERSTATUS_ON]:
             # Commands which only work when powered on
             if self.supports_command("3d"):
-                self.threed_mode = self.send_command("3d")
+                self.threed_mode = await self.send_command("3d")
                 logger.debug("3D: %s", self.threed_mode)
 
             if self.supports_command("appmod"):
-                self.picture_mode = self.send_command("appmod")
+                self.picture_mode = await self.send_command("appmod")
                 logger.debug("Picture mode: %s", self.picture_mode)
 
             if self.supports_command("asp"):
-                self.aspect_ratio = self.send_command("asp")
+                self.aspect_ratio = await self.send_command("asp")
                 logger.debug("Aspect ratio: %s", self.aspect_ratio)
 
             if self.supports_command("bc"):
-                self.brilliant_color = self.send_command("bc") == "on"
+                self.brilliant_color = await self.send_command("bc") == "on"
                 logger.debug("Brilliant color: %s", self.brilliant_color)
 
             if self.supports_command("blank"):
-                self.blank = self.send_command("blank") == "on"
+                self.blank = await self.send_command("blank") == "on"
                 logger.debug("Blank: %s", self.blank)
 
             if self.supports_command("bri"):
-                response = self.send_command("bri")
+                response = await self.send_command("bri")
                 if response is not None:
                     self.brightness = int(response)
                     logger.debug("Brightness: %s", self.brightness)
 
             if self.supports_command("color"):
-                response = self.send_command("color")
+                response = await self.send_command("color")
                 if response is not None:
                     self.color_value = int(response)
                     logger.debug("Color value: %s", self.color_value)
 
             if self.supports_command("con"):
-                response = self.send_command("con")
+                response = await self.send_command("con")
                 if response is not None:
                     self.contrast = int(response)
                     logger.debug("Contrast: %s", self.contrast)
 
             if self.supports_command("ct"):
-                self.color_temperature = self.send_command("ct")
+                self.color_temperature = await self.send_command("ct")
                 logger.debug("Color temperature: %s", self.color_temperature)
 
             if self.supports_command("highaltitude"):
-                self.high_altitude = self.send_command("highaltitude") == "on"
+                self.high_altitude = await self.send_command("highaltitude") == "on"
                 logger.debug("High altitude: %s", self.high_altitude)
 
             if self.supports_command("lampm"):
-                self.lamp_mode = self.send_command("lampm")
+                self.lamp_mode = await self.send_command("lampm")
                 logger.debug("Lamp mode: %s", self.lamp_mode)
 
             if self.supports_command("qas"):
-                self.quick_auto_search = self.send_command("qas") == "on"
+                self.quick_auto_search = await self.send_command("qas") == "on"
                 logger.debug("Quick auto search: %s", self.quick_auto_search)
 
             if self.supports_command("sharp"):
-                self.sharpness = self.send_command("sharp")
+                self.sharpness = await self.send_command("sharp")
                 logger.debug("Sharpness: %s", self.sharpness)
 
-            self.update_video_source()
-            self.update_volume()
+            await self.update_video_source()
+            await self.update_volume()
 
         return True
 
-    def turn_on(self):
+    async def turn_on(self):
         """
         Turn the projector on.
 
         First it tests if the projector is in a state that powering on is possible.
         """
         # Check the actual power state of the projector.
-        response = self.send_command("pow")
+        response = await self.send_command("pow")
         if response == "on":
             # The projector is already on.
             if (
@@ -1070,7 +1079,7 @@ class BenQProjector(ABC):
 
             # Continue powering on the projector.
             logger.info("Turning on projector")
-            response = self.send_command("pow", "on")
+            response = await self.send_command("pow", "on")
             if response == "on":
                 self.power_status = self.POWERSTATUS_POWERINGON
                 self._power_timestamp = time.time()
@@ -1081,14 +1090,14 @@ class BenQProjector(ABC):
 
         return False
 
-    def turn_off(self):
+    async def turn_off(self):
         """
         Turn the projector off.
 
         First it tests if the projector is in a state that powering off is possible.
         """
         # Check the actual power state of the projector.
-        response = self.send_command("pow")
+        response = await self.send_command("pow")
         if response == "off":
             # The projector is already off.
             if (
@@ -1115,7 +1124,7 @@ class BenQProjector(ABC):
 
             # Continue powering off the projector.
             logger.info("Turning off projector")
-            response = self.send_command("pow", "off")
+            response = await self.send_command("pow", "off")
             if response == "off":
                 self.power_status = self.POWERSTATUS_POWERINGOFF
                 self._power_timestamp = time.time()
@@ -1126,73 +1135,73 @@ class BenQProjector(ABC):
 
         return False
 
-    def mute(self):
+    async def mute(self):
         """Mutes the volume."""
-        response = self.send_command("mute", "on")
+        response = await self.send_command("mute", "on")
         if response == "on":
             self.muted = True
             return True
 
         return False
 
-    def unmute(self):
+    async def unmute(self):
         """Unmutes the volume."""
-        response = self.send_command("mute", "off")
+        response = await self.send_command("mute", "off")
         if response == "off":
             self.muted = False
             return True
 
         return False
 
-    def volume_up(self) -> None:
+    async def volume_up(self) -> None:
         """Increase volume."""
         if self.volume is None:
             self.update_volume()
         elif self.volume >= 20:  # Can't go higher than 20
             return False
 
-        if self.send_command("vol", "+") == "+":
+        if await self.send_command("vol", "+") == "+":
             self.volume += 1
             return True
 
         return False
 
-    def volume_down(self) -> None:
+    async def volume_down(self) -> None:
         """Decrease volume."""
         if self.volume is None:
             self.update_volume()
         elif self.volume <= 0:  # Can't go lower than 0
             return False
 
-        if self.send_command("vol", "-") == "-":
+        if await self.send_command("vol", "-") == "-":
             self.volume -= 1
             return True
 
         return False
 
-    def volume_level(self, level) -> None:
+    async def volume_level(self, level) -> None:
         """Set volume to a given level."""
         if self.volume == level:
             return True
 
         while self.volume < level:
-            if not self.volume_up():
+            if not await self.volume_up():
                 return False
 
         while self.volume > level:
-            if not self.volume_down():
+            if not await self.volume_down():
                 return False
 
         return True
 
-    def select_video_source(self, video_source: str):
+    async def select_video_source(self, video_source: str):
         """Select projector video source."""
         video_source = video_source.lower()
 
         if video_source not in self.video_sources:
             return False
 
-        if self.send_command("sour", video_source) == video_source:
+        if await self.send_command("sour", video_source) == video_source:
             self.video_source = video_source
             return True
 

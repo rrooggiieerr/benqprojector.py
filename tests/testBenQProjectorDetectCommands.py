@@ -1,39 +1,38 @@
+# pylint: disable=R0801
+# pylint: disable=invalid-name
+# pylint: disable=missing-class-docstring
+# pylint: disable=missing-function-docstring
 """
 Created on 16 Jan 2023
 
 @author: Rogier van Staveren
 """
+
 import logging
 import unittest
 
-# from benqprojector import BenQProjectorSerial as BenQProjector
-from benqprojector import BenQProjectorTelnet as BenQProjector
+from benqprojector import BenQProjectorSerial
+
+# from benqprojector import BenQProjectorTelnet
 
 logger = logging.getLogger(__name__)
-logging.basicConfig(
-    format="%(asctime)s %(levelname)-8s %(message)s", level=logging.DEBUG
-)
 
-serial_port = "/dev/tty.usbserial-10"
+SERIAL_PORT = "/dev/tty.usbserial-10"
+BAUD_RATE = 115200
 
 
-class Test(unittest.TestCase):
+class Test(unittest.IsolatedAsyncioTestCase):
     _projector = None
 
-    def setUp(self):
-        # self._projector = BenQProjector(serial_port, 115200)
-        self._projector = BenQProjector("rs232-bridge.local", 32)
-        self._projector.connect()
-        self._projector.update()
+    async def asyncSetUp(self):
+        self._projector = BenQProjectorSerial(SERIAL_PORT, BAUD_RATE)
+        # self._projector = BenQProjectorTelnet("rs232-bridge.local", 32)
+        await self._projector.connect()
+        await self._projector.update()
 
-    def tearDown(self):
-        self._projector.disconnect()
+    async def asyncTearDown(self):
+        await self._projector.disconnect()
 
-    def test_detect_commands(self):
-        response = self._projector.detect_commands()
+    async def test_detect_commands(self):
+        response = await self._projector.detect_commands()
         self.assertIsNotNone(response)
-
-
-if __name__ == "__main__":
-    # import sys;sys.argv = ['', 'Test.testName']
-    unittest.main()
