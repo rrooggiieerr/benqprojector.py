@@ -9,12 +9,17 @@ import asyncio
 import json
 import logging
 import sys
+from typing import Any
 
 from serial.serialutil import SerialException
 
 from benqprojector import BenQProjector, BenQProjectorSerial, BenQProjectorTelnet
 
 _LOGGER = logging.getLogger(__name__)
+
+
+def _listener(command: str, data: Any):
+    _LOGGER.info("%s %s", command, data)
 
 
 async def main(projector: BenQProjector, action: str):
@@ -66,6 +71,11 @@ async def main(projector: BenQProjector, action: str):
         elif action == "off":
             if await projector.turn_off():
                 pass
+        elif action == "monitor":
+            projector.add_listener(_listener)
+
+            while True:
+                await asyncio.sleep(1)
         elif action == "examine":
             _LOGGER.info("Model: %s", projector.model)
             if projector.power_status == projector.POWERSTATUS_OFF:
@@ -98,7 +108,9 @@ if __name__ == "__main__":
     telnet_parser.add_argument("host")
     telnet_parser.add_argument("port", type=int)
 
-    argparser.add_argument("action", choices=["status", "on", "off", "examine"])
+    argparser.add_argument(
+        "action", choices=["status", "on", "off", "monitor", "examine"]
+    )
     argparser.add_argument("--wait", dest="wait", action="store_true")
     argparser.add_argument("--debug", dest="debugLogging", action="store_true")
 
