@@ -16,6 +16,7 @@ import sys
 import time
 from abc import ABC
 from datetime import datetime
+from typing import Any
 
 from .benqconnection import (
     DEFAULT_PORT,
@@ -36,6 +37,18 @@ WHITESPACE = string.whitespace + "\x00"
 
 _RESPONSE_TIMEOUT = 5.0
 _CONNECTION_LOCK_TIMEOUT = 1
+
+
+background_tasks = set()
+
+
+def _add_background_task(task: asyncio.Task) -> None:
+    # Add task to the set. This creates a strong reference.
+    background_tasks.add(task)
+
+    # To prevent keeping references to finished tasks forever, make each task remove its own
+    # reference from the set after completion:
+    task.add_done_callback(background_tasks.discard)
 
 
 class BenQProjectorError(Exception):
@@ -152,6 +165,10 @@ class BenQProjector(ABC):
     connection = None
     _init: bool = True
 
+    _read_task = None
+    _loop = None
+    _listeners: list[Any]
+
     model = None
     _mac = None
     unique_id = None
@@ -238,6 +255,8 @@ class BenQProjector(ABC):
             self._interactive = True
 
         self._connection_lock = asyncio.Lock()
+        self._listeners = []
+        self._listener_commands = []
 
     def busy(self):
         return self._connection_lock.locked()
@@ -271,19 +290,25 @@ class BenQProjector(ABC):
         return self.projector_config_all.get(key)
 
     async def _connect(self) -> bool:
-        if self.connection and not self.connection.is_open():
+        if not self.connected():
+            if self._loop is None:
+                self._loop = asyncio.get_event_loop()
+
             logger.info("Connecting to %s", self.connection)
             await self.connection.open()
+            logger.debug("Connected to %s", self.connection)
 
-        if self.connection and self.connection.is_open():
+        if self.connected():
             return True
 
         return False
 
-    async def connect(self) -> bool:
+    async def connect(self, loop=None) -> bool:
         """
         Connect to the BenQ projector.
         """
+        self._loop = loop
+
         if not await self._connect():
             return False
 
@@ -374,12 +399,123 @@ class BenQProjector(ABC):
 
         self._init = False
 
+        if self._read_task is None and len(self._listeners) > 0:
+            self._read_task = asyncio.create_task(self._read_coroutine())
+            _add_background_task(self._read_task)
+
         return True
+
+    def connected(self) -> bool:
+        if self.connection and self.connection.is_open():
+            return True
+
+        return False
+
+    async def _disconnect(self):
+        await self.connection.close()
 
     async def disconnect(self):
         """Disconnect from the BenQ projector."""
-        if self.connection is not None:
-            await self.connection.close()
+        if self.connected():
+            await self._cancel_read()
+            await self._disconnect()
+
+    def add_listener(self, listener=None, command: str = None):
+        """
+        Adds a Callback to the BenQ projector.
+        """
+        if command is not None and command not in self._listener_commands:
+            self._listener_commands.append(command)
+
+        if listener is not None:
+            self._listeners.append(listener)
+
+            if self._read_task == None:
+                self._read_task = asyncio.create_task(self._read_coroutine())
+                _add_background_task(self._read_task)
+
+    def _forward_to_listeners(self, command: str, data: Any | None):
+        for listener in self._listeners:
+            try:
+                listener(command, data)
+            # pylint: disable=broad-exception-caught
+            except Exception:
+                logger.exception("Exception in Callback: %s", listener)
+
+    async def _cancel_read(self) -> bool:
+        if self._read_task is not None and not (
+            self._read_task.done() or self._read_task.cancelled()
+        ):
+            return self._read_task.cancel()
+
+        return True
+
+    async def _read_coroutine(self):
+        """
+        Reads the current status of the projector in a loop
+        """
+        previous_data = {}
+
+        while True:
+            try:
+                if not self.connected():
+                    await self._connect()
+
+                if self.connected() and not self.busy():
+                    await self.update_power()
+                    if self.power_status is not None:
+                        if previous_data.get("pow") != self.power_status:
+                            self._forward_to_listeners("pow", self.power_status)
+                            previous_data["pow"] = self.power_status
+
+                        for command in ["pp", "ltim", "ltim2"]:
+                            if command in self._listener_commands:
+                                data = await self.send_command(command)
+                                if (
+                                    data is not None
+                                    and previous_data.get(command) != data
+                                ):
+                                    self._forward_to_listeners(command, data)
+                                    previous_data[command] = data
+
+                        if self.power_status == self.POWERSTATUS_ON:
+                            await self.update_volume()
+                            if previous_data.get("mute") != self.muted:
+                                self._forward_to_listeners("mute", self.muted)
+                                previous_data["mute"] = self.muted
+                            if previous_data.get("vol") != self.volume:
+                                self._forward_to_listeners("vol", self.volume)
+                                previous_data["vol"] = self.volume
+
+                            await self.update_video_source()
+                            if previous_data.get("sour") != self.video_source:
+                                self._forward_to_listeners("sour", self.video_source)
+                                previous_data["sour"] = self.video_source
+
+                            for command in self._listener_commands:
+                                if command not in ["pow", "pp", "ltim", "ltim2"]:
+                                    data = await self.send_command(command)
+                                    if (
+                                        data is not None
+                                        and previous_data.get(command) != data
+                                    ):
+                                        self._forward_to_listeners(command, data)
+                                        previous_data[command] = data
+
+                await asyncio.sleep(0.1)
+            except asyncio.CancelledError:
+                logger.debug("Read coroutine was canceled")
+                break
+            except (BrokenPipeError, ConnectionResetError, TimeoutError):
+                logger.exception("Error communicating with BenQ projector")
+                await self._disconnect()
+                # break
+            except Exception:
+                logger.exception("Unexpected error")
+                break
+
+        self._read_task = None
+        logger.debug("Read coroutine stopped")
 
     def supports_command(self, command) -> bool:
         """
