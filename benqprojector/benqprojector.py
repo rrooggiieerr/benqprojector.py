@@ -148,6 +148,7 @@ class BenQProjector(ABC):
     connection = None
     busy = False
     _init: bool = True
+    is_network = False
 
     model = None
     _mac = None
@@ -220,6 +221,8 @@ class BenQProjector(ABC):
         Initialises the BenQProjector object.
         """
         assert connection is not None
+
+        self.is_network = isinstance(connection, BenQTelnetConnection)
 
         self.connection = connection
         self.model = model_hint
@@ -478,12 +481,20 @@ class BenQProjector(ABC):
         # Clean input buffer
         self.connection.reset()
 
+        sent_cr = False
+
         start_time = datetime.now()
         while True:
             response = self.connection.readline()
             if response == b"":
+
+                if self.is_network and sent_cr:
+                    return True
+
                 self.connection.write(b"\r")
                 self.connection.flush()
+
+                sent_cr = True
             elif response[-1:] == b">":
                 return True
             elif response.strip(string.whitespace + "\x00") == b"":
@@ -502,12 +513,17 @@ class BenQProjector(ABC):
 
     def _read_response(self) -> str:
         response = b""
+
+        responses = [b"\n", b"\r", b"\x00"]
+        if self.is_network:
+            responses = [b"\n", b"\r", b"\x00", b"*"]
+
         last_response = datetime.now()
         while True:
             _response = self.connection.readline()
             if len(_response) > 0:
                 response += _response
-                if any(c in _response for c in [b"\n", b"\r", b"\x00"]):
+                if any(c in _response for c in responses):
                     response = response.decode()
                     # Cleanup response
                     response = response.strip(string.whitespace + "\x00")
