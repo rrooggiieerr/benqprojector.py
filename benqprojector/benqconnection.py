@@ -16,7 +16,7 @@ import serial_asyncio_fast as serial_asyncio
 logger = logging.getLogger(__name__)
 
 _SERIAL_TIMEOUT = 0.1
-_TELNET_TIMEOUT = 0.1
+_TELNET_TIMEOUT = 0.2
 
 DEFAULT_PORT = 8000
 
