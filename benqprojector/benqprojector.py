@@ -261,23 +261,28 @@ class BenQProjector(ABC):
     def busy(self):
         return self._connection_lock.locked()
 
-    def get_config(self, key):
+    def _read_config(self, model: str):
+        model_filename = (
+            "".join(c if c.isalnum() or c in "._-" else "_" for c in model) + ".json"
+        )
+        with importlib.resources.open_text(
+            "benqprojector.configs", model_filename
+        ) as file:
+            return json.load(file)
+
+        return None
+
+    async def get_config(self, key):
         if not self.projector_config_all:
-            with importlib.resources.open_text(
-                "benqprojector.configs", "all.json"
-            ) as file:
-                self.projector_config_all = json.load(file)
+            self.projector_config_all = await self._loop.run_in_executor(
+                None, self._read_config, "all"
+            )
 
         if not self.projector_config and self.model:
             try:
-                model_filename = (
-                    "".join(c if c.isalnum() or c in "._-" else "_" for c in self.model)
-                    + ".json"
+                self.projector_config = await self._loop.run_in_executor(
+                    None, self._read_config, self.model
                 )
-                with importlib.resources.open_text(
-                    "benqprojector.configs", model_filename
-                ) as file:
-                    self.projector_config = json.load(file)
             except FileNotFoundError:
                 pass
 
@@ -316,10 +321,9 @@ class BenQProjector(ABC):
             return True
 
         if not self.model:
-            with importlib.resources.open_text(
-                "benqprojector.configs", "minimal.json"
-            ) as file:
-                self.projector_config = json.load(file)
+            self.projector_config = await self._loop.run_in_executor(
+                None, self._read_config, "minimal"
+            )
 
         power = None
         try:
