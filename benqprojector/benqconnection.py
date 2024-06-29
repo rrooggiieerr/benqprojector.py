@@ -65,8 +65,8 @@ class BenQConnection(ABC):
             try:
                 self._writer.close()
                 await self._writer.wait_closed()
-            except ConnectionResetError as ex:
-                logger.error(ex)
+            except ConnectionResetError:
+                logger.exception("Connection reset")
 
             self._reader = None
             self._writer = None
