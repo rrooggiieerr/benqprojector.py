@@ -115,15 +115,12 @@ class BenQConnection(ABC):
         """
         Reads all lines from the connection.
         """
-        lines = []
-
-        while True:
-            line = await self.readline()
-            if not line:
-                break
-            lines.append(line)
-
-        return lines
+        try:
+            return await asyncio.wait_for(
+                self._reader.readlines(), timeout=self._read_timeout
+            )
+        except TimeoutError:
+            return []
 
     async def write(self, data: bytes) -> int:
         """
