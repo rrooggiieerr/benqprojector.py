@@ -164,6 +164,7 @@ class BenQProjector(ABC):
 
     connection = None
     _init: bool = True
+    _has_to_wait_for_prompt = True
 
     _read_task = None
     _loop = None
@@ -591,6 +592,7 @@ class BenQProjector(ABC):
 
                 if response == ">":
                     logger.debug("Response is command prompt >")
+                    self._has_to_wait_for_prompt = True
                     continue
 
                 if action == "?" and not echo_received and response == _command:
@@ -627,12 +629,18 @@ class BenQProjector(ABC):
         # Clean input buffer
         await self.connection.reset()
 
+        if not self._has_to_wait_for_prompt:
+            await self.connection.write(b"\r")
+            await self.connection.read(1)
+            return True
+
         start_time = datetime.now()
         while True:
             response = await self.connection.read(100)
             if response == b"":
                 await self.connection.write(b"\r")
             elif response[-1:] == b">":
+                self._has_to_wait_for_prompt = False
                 return True
             elif response.strip(WHITESPACE.encode()) == b"":
                 pass
@@ -666,6 +674,7 @@ class BenQProjector(ABC):
 
             if (datetime.now() - last_response).total_seconds() > _RESPONSE_TIMEOUT:
                 logger.warning("Timeout while waiting for response")
+                self._has_to_wait_for_prompt = True
                 raise ResponseTimeoutError()
 
             logger.debug("Waiting for response")
