@@ -688,7 +688,6 @@ class BenQProjector(ABC):
 
         logger.debug("command %s", command)
         await self.connection.write(f"{command}\r".encode("ascii"))
-        await self.connection.flush()
 
     def _parse_response(self, command, action, _command, response):
         # Lowercase the response
