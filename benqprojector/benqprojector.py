@@ -376,19 +376,19 @@ class BenQProjector(ABC):
             self.model = model
             self.projector_config = None
 
-        self._supported_commands = self.get_config("commands")
-        self.video_sources = self.get_config("sources")
-        self.audio_sources = self.get_config("audio_sources")
-        self.picture_modes = self.get_config("picture_modes")
-        self.color_temperatures = self.get_config("color_temperatures")
-        self.aspect_ratios = self.get_config("aspect_ratios")
-        self.projector_positions = self.get_config("projector_positions")
-        self.lamp_modes = self.get_config("lamp_modes")
-        self.threed_modes = self.get_config("3d_modes")
-        self.menu_positions = self.get_config("menu_positions")
+        self._supported_commands = await self.get_config("commands")
+        self.video_sources = await self.get_config("sources")
+        self.audio_sources = await self.get_config("audio_sources")
+        self.picture_modes = await self.get_config("picture_modes")
+        self.color_temperatures = await self.get_config("color_temperatures")
+        self.aspect_ratios = await self.get_config("aspect_ratios")
+        self.projector_positions = await self.get_config("projector_positions")
+        self.lamp_modes = await self.get_config("lamp_modes")
+        self.threed_modes = await self.get_config("3d_modes")
+        self.menu_positions = await self.get_config("menu_positions")
 
-        self._poweron_time = self.get_config("poweron_time")
-        self._poweroff_time = self.get_config("poweroff_time")
+        self._poweron_time = await self.get_config("poweron_time")
+        self._poweroff_time = await self.get_config("poweroff_time")
 
         mac = None
         if self.supports_command("macaddr"):
