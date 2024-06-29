@@ -473,16 +473,6 @@ class BenQProjector(ABC):
                             self._forward_to_listeners("pow", self.power_status)
                             previous_data["pow"] = self.power_status
 
-                        for command in ["pp", "ltim", "ltim2"]:
-                            if command in self._listener_commands:
-                                data = await self.send_command(command)
-                                if (
-                                    data is not None
-                                    and previous_data.get(command) != data
-                                ):
-                                    self._forward_to_listeners(command, data)
-                                    previous_data[command] = data
-
                         if self.power_status == self.POWERSTATUS_ON:
                             await self.update_volume()
                             if previous_data.get("mute") != self.muted:
@@ -498,7 +488,17 @@ class BenQProjector(ABC):
                                 previous_data["sour"] = self.video_source
 
                             for command in self._listener_commands:
-                                if command not in ["pow", "pp", "ltim", "ltim2"]:
+                                if command not in ["pow", "mute", "vol", "sour"]:
+                                    data = await self.send_command(command)
+                                    if (
+                                        data is not None
+                                        and previous_data.get(command) != data
+                                    ):
+                                        self._forward_to_listeners(command, data)
+                                        previous_data[command] = data
+                        else:
+                            for command in ["pp", "ltim", "ltim2"]:
+                                if command in self._listener_commands and command not in previous_data:
                                     data = await self.send_command(command)
                                     if (
                                         data is not None
@@ -595,7 +595,7 @@ class BenQProjector(ABC):
                     self._has_to_wait_for_prompt = True
                     continue
 
-                if action == "?" and not echo_received and response == _command:
+                if action == "?" and not echo_received and response in (_command, f">{_command}"):
                     # Command echo.
                     logger.debug("Command successfully send")
                     echo_received = True
