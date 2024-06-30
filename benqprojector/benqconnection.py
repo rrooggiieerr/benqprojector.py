@@ -112,16 +112,6 @@ class BenQConnection(ABC):
         except TimeoutError:
             return b""
 
-    async def readlines(self) -> list[bytes]:
-        """
-        Reads all lines from the connection.
-        """
-        try:
-            return await asyncio.wait_for(
-                self._reader.readlines(), timeout=self._read_timeout
-            )
-        except TimeoutError:
-            return []
 
     async def write(self, data: bytes) -> int:
         """

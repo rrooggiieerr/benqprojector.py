@@ -56,9 +56,9 @@ class Test(unittest.IsolatedAsyncioTestCase):
     async def test_write(self):
         await self._connection.open()
         await self._connection.write(b"\r*pow=?#\r")
-        result = await self._connection.readlines()
-        logger.debug(result)
-        self.assertIsNotNone(result)
+        await self._connection.readline()
+        result = await self._connection.readline()
+        self.assertTrue(result.startswith(b"*POW="))
 
 
 if __name__ == "__main__":
