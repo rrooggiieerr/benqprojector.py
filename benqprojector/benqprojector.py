@@ -34,6 +34,7 @@ RESPONSE_RE_STRICT = r"^\*([^=]*)=([^#]*)#$"
 RESPONSE_RE_LOSE = r"^\*?([^=]*)=([^#]*)#?$"
 
 WHITESPACE = string.whitespace + "\x00"
+END_OF_RESPONSE = b"#\n\r\x00"
 
 _RESPONSE_TIMEOUT = 5.0
 _CONNECTION_LOCK_TIMEOUT = 1
@@ -663,7 +664,7 @@ class BenQProjector(ABC):
             _response = await self.connection.readline()
             if len(_response) > 0:
                 response += _response
-                if any(c in _response for c in [b"\n", b"\r", b"\x00"]):
+                if any(c in _response for c in END_OF_RESPONSE):
                     response = response.decode()
                     # Cleanup response
                     response = response.strip(WHITESPACE)
