@@ -332,7 +332,7 @@ class BenQProjector(ABC):
             power = await self._send_command("pow")
             if power is None:
                 logger.error("Failed to retrieve projector power state.")
-        except PromptTimeoutError as ex:
+        except PromptTimeoutError:
             logger.error(
                 "Failed to get projector command prompt, is your projector properly connected?"
             )
@@ -436,7 +436,7 @@ class BenQProjector(ABC):
         if listener is not None:
             self._listeners.append(listener)
 
-            if self._read_task == None:
+            if self._read_task is None:
                 self._read_task = asyncio.create_task(self._read_coroutine())
                 _add_background_task(self._read_task)
 
@@ -468,8 +468,7 @@ class BenQProjector(ABC):
                     await self._connect()
 
                 if self.connected() and not self.busy():
-                    await self.update_power()
-                    if self.power_status is not None:
+                    if await self.update_power():
                         if previous_data.get("pow") != self.power_status:
                             self._forward_to_listeners("pow", self.power_status)
                             previous_data["pow"] = self.power_status
@@ -499,7 +498,10 @@ class BenQProjector(ABC):
                                         previous_data[command] = data
                         else:
                             for command in ["pp", "ltim", "ltim2"]:
-                                if command in self._listener_commands and command not in previous_data:
+                                if (
+                                    command in self._listener_commands
+                                    and command not in previous_data
+                                ):
                                     data = await self.send_command(command)
                                     if (
                                         data is not None
@@ -507,6 +509,12 @@ class BenQProjector(ABC):
                                     ):
                                         self._forward_to_listeners(command, data)
                                         previous_data[command] = data
+                    elif (
+                        self.power_status == self.POWERSTATUS_UNKNOWN
+                        and previous_data.get("pow") != self.power_status
+                    ):
+                        self._forward_to_listeners("pow", self.power_status)
+                        previous_data["pow"] = self.power_status
 
                 await asyncio.sleep(0.1)
             except asyncio.CancelledError:
@@ -596,7 +604,11 @@ class BenQProjector(ABC):
                     self._has_to_wait_for_prompt = True
                     continue
 
-                if action == "?" and not echo_received and response in (_command, f">{_command}"):
+                if (
+                    action == "?"
+                    and not echo_received
+                    and response in (_command, f">{_command}")
+                ):
                     # Command echo.
                     logger.debug("Command successfully send")
                     echo_received = True
@@ -1031,6 +1043,9 @@ class BenQProjector(ABC):
                 logger.debug("Projector still powering off")
                 return True
 
+            self.power_status = self.POWERSTATUS_UNKNOWN
+            return False
+
         if response == "off":
             if (
                 self.power_status == self.POWERSTATUS_POWERINGOFF
@@ -1056,7 +1071,6 @@ class BenQProjector(ABC):
             return True
 
         logger.error("Unknown power status: %s", response)
-        # self.power_status = self.POWERSTATUS_UNKNOWN
         return False
 
     async def update_volume(self) -> bool:
