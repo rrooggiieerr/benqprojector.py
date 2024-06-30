@@ -8,6 +8,7 @@ Created on 25 Aug 2023
 
 import asyncio
 import logging
+import socket
 from abc import ABC, abstractmethod
 
 import serial
@@ -65,9 +66,8 @@ class BenQConnection(ABC):
             try:
                 self._writer.close()
                 await self._writer.wait_closed()
-            except (ConnectionResetError, BrokenPipeError):
-                logger.exception("Connection reset")
-                self.close()
+            except ConnectionError:
+                logger.exception("Connection error")
 
             self._reader = None
             self._writer = None
@@ -95,6 +95,9 @@ class BenQConnection(ABC):
             return await asyncio.wait_for(
                 self._reader.read(size), timeout=self._read_timeout
             )
+        except ConnectionError as ex:
+            await self.close()
+            raise BenQConnectionError(ex.strerror) from ex
         except TimeoutError:
             return b""
 
@@ -109,6 +112,9 @@ class BenQConnection(ABC):
             return await asyncio.wait_for(
                 self._reader.readline(), timeout=self._read_timeout
             )
+        except ConnectionError as ex:
+            await self.close()
+            raise BenQConnectionError(ex.strerror) from ex
         except TimeoutError:
             return b""
 
@@ -122,9 +128,9 @@ class BenQConnection(ABC):
             await self._writer.drain()
 
             return len(data)
-        except ConnectionResetError as ex:
+        except ConnectionError as ex:
             await self.close()
-            raise BenQConnectionError(str(ex)) from ex
+            raise BenQConnectionError(ex.strerror) from ex
 
     async def flush(self) -> None:
         """
@@ -199,3 +205,5 @@ class BenQTelnetConnection(BenQConnection):
             return True
         except TimeoutError as ex:
             raise BenQConnectionTimeoutError(str(ex)) from ex
+        except socket.gaierror as ex:
+            raise BenQConnectionError(ex.strerror) from ex
