@@ -300,9 +300,6 @@ class BenQProjector(ABC):
 
     async def _connect(self) -> bool:
         if not self.connected():
-            if self._loop is None:
-                self._loop = asyncio.get_event_loop()
-
             logger.info("Connecting to %s", self.connection)
             await self.connection.open()
             logger.debug("Connected to %s", self.connection)
@@ -317,6 +314,8 @@ class BenQProjector(ABC):
         Connect to the BenQ projector.
         """
         self._loop = loop
+        if self._loop is None:
+            self._loop = asyncio.get_event_loop()
 
         if not await self._connect():
             return False
