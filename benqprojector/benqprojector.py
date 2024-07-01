@@ -609,11 +609,14 @@ class BenQProjector(ABC):
                     self._has_to_wait_for_prompt = True
                     continue
 
-                if (
-                    action == "?"
-                    and not echo_received
-                    and response in (_command, f">{_command}")
-                ):
+                if action == "?" and not echo_received and response == _command:
+                    # Command echo.
+                    logger.debug("Command successfully sent")
+                    echo_received = True
+                    self._expect_command_echo = True
+                    continue
+
+                if not echo_received and response == f">{_command}":
                     # Command echo.
                     logger.debug("Command successfully sent")
                     echo_received = True
@@ -627,7 +630,7 @@ class BenQProjector(ABC):
                         echo_received = True
                         previous_response = response
                         continue
-                    logger.debug("No command echo received")
+                    logger.warning("No command echo received")
                     self._expect_command_echo = False
 
                 return self._parse_response(command, action, _command, response)
