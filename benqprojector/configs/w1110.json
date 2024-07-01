@@ -37,7 +37,7 @@
 	],
 	"sources": ["hdmi", "hdmi2", "rgb", "vid", "ypbr"],
 	"audio_sources": [],
-	"picture_modes": ["bright", "game", "cine", "user1", "user2", "isfday", "isfnight", "threed"],
+	"picture_modes": ["bright", "vivid", "cine", "game", "user1", "user2"],
 	"color_temperatures": ["warm", "normal", "cool", "native"],
 	"aspect_ratios": ["4:3", "16:9", "auto", "lbox", "wide"],
 	"projector_positions": ["ft", "re", "rc", "fc"],
