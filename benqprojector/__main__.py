@@ -79,6 +79,9 @@ async def main(projector: BenQProjector, action: str):
         elif action == "monitor":
             projector.add_listener(_listener)
 
+            for command in projector._supported_commands:
+                projector.add_listener(command=command)
+
             while True:
                 await asyncio.sleep(1)
         elif action == "examine":
