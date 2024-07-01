@@ -13,7 +13,12 @@ from typing import Any
 
 from serial.serialutil import SerialException
 
-from benqprojector import BenQProjector, BenQProjectorSerial, BenQProjectorTelnet
+from benqprojector import (
+    DEFAULT_PORT,
+    BenQProjector,
+    BenQProjectorSerial,
+    BenQProjectorTelnet,
+)
 
 _LOGGER = logging.getLogger(__name__)
 
@@ -106,7 +111,7 @@ if __name__ == "__main__":
 
     telnet_parser = subparsers.add_parser("telnet")
     telnet_parser.add_argument("host")
-    telnet_parser.add_argument("port", type=int)
+    telnet_parser.add_argument("port", nargs="?", type=int, default=DEFAULT_PORT)
 
     argparser.add_argument(
         "action", choices=["status", "on", "off", "monitor", "examine"]
