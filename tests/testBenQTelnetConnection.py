@@ -16,7 +16,7 @@ from benqprojector.benqconnection import BenQTelnetConnection
 
 logger = logging.getLogger(__name__)
 
-HOSTNAME = "rs232-bridge.local"
+HOSTNAME = "benqprojector-livingroom.local"
 
 
 class Test(unittest.IsolatedAsyncioTestCase):
@@ -31,7 +31,7 @@ class Test(unittest.IsolatedAsyncioTestCase):
     async def test_open(self):
         result = await self._connection.open()
         self.assertTrue(result)
-        self.assertTrue(self._connection.is_open)
+        self.assertTrue(self._connection.is_open())
 
     async def test_close(self):
         await self._connection.open()
@@ -59,8 +59,3 @@ class Test(unittest.IsolatedAsyncioTestCase):
         await self._connection.readline()
         result = await self._connection.readline()
         self.assertTrue(result.startswith(b"*POW="))
-
-
-if __name__ == "__main__":
-    # import sys;sys.argv = ['', 'Test.testName']
-    unittest.main()

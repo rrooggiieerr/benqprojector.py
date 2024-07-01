@@ -42,12 +42,14 @@ class Test(unittest.IsolatedAsyncioTestCase):
 
     async def test_read(self):
         await self._connection.open()
+        await self._connection.write(b"\r")
         result = await self._connection.read(1)
         logger.debug(result)
         self.assertIsNotNone(result)
 
     async def test_readline(self):
         await self._connection.open()
+        await self._connection.write(b"\r")
         result = await self._connection.readline()
         logger.debug(result)
         self.assertIsNotNone(result)
@@ -58,8 +60,3 @@ class Test(unittest.IsolatedAsyncioTestCase):
         await self._connection.readline()
         result = await self._connection.readline()
         self.assertTrue(result.startswith(b"*POW="))
-
-
-if __name__ == "__main__":
-    # import sys;sys.argv = ['', 'Test.testName']
-    unittest.main()
