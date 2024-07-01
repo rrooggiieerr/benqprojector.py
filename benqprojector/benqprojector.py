@@ -168,6 +168,7 @@ class BenQProjector(ABC):
 
     _init: bool = True
     _has_to_wait_for_prompt = True
+    _use_volume_increments = False
 
     _read_task = None
     _loop = None
@@ -1366,6 +1367,16 @@ class BenQProjector(ABC):
         """Set volume to a given level."""
         if self.volume == level:
             return True
+
+        if not self._use_volume_increments:
+            # Try to set the volume without increments, some projectors seem to support this
+            try:
+                if await self._send_command("vol", level) == str(level):
+                    logger.debug("Successfully set volume withouth increments")
+                    return True
+            except UnsupportedItemError:
+                logger.debug("Need increments to set volume")
+                self._use_volume_increments = True
 
         while self.volume < level:
             if not await self.volume_up():
