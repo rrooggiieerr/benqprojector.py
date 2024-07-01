@@ -164,6 +164,8 @@ class BenQProjector(ABC):
     """
 
     connection = None
+    has_prompt = None
+
     _init: bool = True
     _has_to_wait_for_prompt = True
 
@@ -326,6 +328,9 @@ class BenQProjector(ABC):
             self.projector_config = await self._loop.run_in_executor(
                 None, self._read_config, "minimal"
             )
+
+        if self.has_prompt is None:
+            self.has_prompt = await self._detect_prompt()
 
         power = None
         try:
@@ -638,6 +643,23 @@ class BenQProjector(ABC):
         finally:
             self._connection_lock.release()
 
+    async def _detect_prompt(self) -> bool:
+        """
+        Apparently native networked BenQ projectors don't use a prompt, while serial and thus
+        serial to network bridges do use a prompt.
+
+        This function detects if the connection uses a prompt.
+        """
+        await self.connection.write(b"\r")
+        response = await self.connection.read(10)
+        response.strip(WHITESPACE.encode())
+        if response == b">":
+            logger.debug("Prompt detected")
+            return True
+
+            logger.debug("No prompt detected")
+        return False
+
     async def _wait_for_prompt(self) -> bool:
         # Clean input buffer
         await self.connection.reset()
@@ -697,7 +719,8 @@ class BenQProjector(ABC):
         """
         Send a raw command to the BenQ projector.
         """
-        await self._wait_for_prompt()
+        if self.has_prompt:
+            await self._wait_for_prompt()
 
         logger.debug("command %s", command)
         await self.connection.write(f"{command}\r".encode("ascii"))
@@ -1376,6 +1399,8 @@ class BenQProjectorSerial(BenQProjector):
     BenQ Projector class for controlling BenQ projectors over a serial connection.
     """
 
+    has_prompt = True
+
     def __init__(
         self,
         serial_port: str,  # The serial port where the RS-485 interface and
@@ -1408,6 +1433,7 @@ class BenQProjectorTelnet(BenQProjector):
         port: int = DEFAULT_PORT,
         model_hint: str = None,
         strict_validation: bool = False,
+        has_prompt: bool | None = None,
     ) -> None:
         """
         Initializes the BenQProjectorTelnet object.
@@ -1418,5 +1444,6 @@ class BenQProjectorTelnet(BenQProjector):
         self.unique_id = f"{host}:{port}"
 
         connection = BenQTelnetConnection(host, port)
+        self.has_prompt = has_prompt
 
         super().__init__(connection, model_hint, strict_validation)
