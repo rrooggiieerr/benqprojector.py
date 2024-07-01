@@ -614,7 +614,7 @@ class BenQProjector(ABC):
                     and response in (_command, f">{_command}")
                 ):
                     # Command echo.
-                    logger.debug("Command successfully send")
+                    logger.debug("Command successfully sent")
                     echo_received = True
                     self._expect_command_echo = True
                     continue
@@ -622,7 +622,7 @@ class BenQProjector(ABC):
                 if self._expect_command_echo and not echo_received:
                     if action != "?" and response == _command:
                         # Command echo.
-                        logger.debug("Command successfully send")
+                        logger.debug("Command successfully sent")
                         echo_received = True
                         previous_response = response
                         continue
@@ -727,7 +727,6 @@ class BenQProjector(ABC):
     def _parse_response(self, command, action, _command, response):
         # Lowercase the response
         response = response.lower()
-        logger.debug("LC Response: %s", response)
 
         if response in ["*illegal format#", "illegal format"]:
             if not self._interactive:
@@ -744,7 +743,6 @@ class BenQProjector(ABC):
                 logger.warning("Command %s blocked item", _command)
             raise BlockedItemError(command, action)
 
-        logger.debug("Raw response: '%s'", response)
         matches = self._response_re.match(response)
         if not matches:
             logger.error("Unexpected response format, response: %s", response)
