@@ -16,7 +16,7 @@ import serial_asyncio_fast as serial_asyncio
 
 logger = logging.getLogger(__name__)
 
-_SERIAL_TIMEOUT = 0.1
+_SERIAL_TIMEOUT = 0.01
 _TELNET_TIMEOUT = 0.2
 
 DEFAULT_PORT = 8000
@@ -117,7 +117,6 @@ class BenQConnection(ABC):
             raise BenQConnectionError(ex.strerror) from ex
         except TimeoutError:
             return b""
-
 
     async def write(self, data: bytes) -> int:
         """
