@@ -19,7 +19,15 @@ supports projectors which are of the L, P, T, W and X series but probably also o
 
 ## Features
 
+* Connects to a BenQ projector over serial and serial to network bridge
+* Sending commands to projectors
+* Reading the projector status
+* Detect projector capabilities
+* Uses asynchronous IO
+
 ## Hardware
+
+I'm using a generic serial to USB converter to connect to my projector. The projector has a male DB9 connector, thus you need a female conector on your USB converter.
 
 ## Protocol
 
@@ -105,13 +113,21 @@ your projector using the following syntax:
 
 Status of the projector: `python3 -m benqprojector serial <serial port> <baud> status`  
 Turn on the projector: `python3 -m benqprojector serial <serial port> <baud> on`  
-Turn off the projector: `python3 -m benqprojector serial <serial port> <baud> off`
+Turn off the projector: `python3 -m benqprojector serial <serial port> <baud> off`  
+Monitor the projector status: `python3 -m benqprojector serial <serial port> <baud> monitor`
+
+Where `<serial port>` is the serial port your projector is connected to and `<baud>` the baud rate
+of the projector.
 
 Or if your projector is connected using a serial to network bridge:
 
 Status of the projector: `python3 -m benqprojector telnet <host> <port> status`  
 Turn on the projector: `python3 -m benqprojector telnet <host> <port> on`  
 Turn off the projector: `python3 -m benqprojector telnet <host> <port> off`
+Monitor the projector status: `python3 -m benqprojector telnet <host> <port> monitor`
+
+Where `<host>` is the hostname or IP address of the projector and `<port>` the optional port number
+of the projector. If no port number is given the default port number 8000 is used.
 
 ### Detecting your projector capabilities
 
