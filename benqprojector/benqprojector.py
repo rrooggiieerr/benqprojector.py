@@ -702,7 +702,7 @@ class BenQProjector(ABC):
             if len(_response) > 0:
                 response += _response
                 if any(c in _response for c in END_OF_RESPONSE):
-                    response = response.decode()
+                    response = response.decode(errors="ignore")
                     # Cleanup response
                     response = response.strip(WHITESPACE)
                     logger.debug("Response: %s", response)
