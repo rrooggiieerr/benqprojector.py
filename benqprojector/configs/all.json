@@ -107,7 +107,8 @@
 		"vid",
 		"ypbr",
 		"hdmi",
-		"hdmi2"
+		"hdmi2",
+		"hdmi3"
 	],
 	"picture_modes": [
 		"dynamic",
@@ -120,13 +121,21 @@
 		"cine",
 		"std",
 		"football",
+		"footballbt",
 		"dicom",
 		"user1",
 		"user2",
 		"user3",
 		"isfday",
 		"isfnight",
-		"threed"
+		"threed",
+		"thx",
+		"silence",
+		"dci-p3",
+		"infographic",
+		"sport",
+		"hdr",
+		"hlg"
 	],
 	"color_temperatures": [
 		"warmer",
@@ -141,11 +150,14 @@
 		"16:6",
 		"16:9",
 		"16:10",
+		"2.35",
 		"auto",
 		"real",
 		"lbox",
 		"wide",
-		"anam"
+		"anam",
+		"anam2.35",
+		"anam16:9"
 	],
 	"projector_positions": [
 		"ft",
