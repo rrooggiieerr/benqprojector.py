@@ -173,6 +173,7 @@ class BenQProjector(ABC):
     _read_task = None
     _loop = None
     _listeners: list[Any]
+    _interval: int = None
 
     model = None
     _mac = None
@@ -310,10 +311,12 @@ class BenQProjector(ABC):
 
         return False
 
-    async def connect(self, loop=None) -> bool:
+    async def connect(self, loop=None, interval: float = None) -> bool:
         """
         Connect to the BenQ projector.
         """
+        assert interval is None or interval > 0
+
         self._loop = loop
         if self._loop is None:
             self._loop = asyncio.get_event_loop()
@@ -409,8 +412,13 @@ class BenQProjector(ABC):
         await self.update_power()
 
         self._init = False
+        self._interval = interval
 
-        if self._read_task is None and len(self._listeners) > 0:
+        if (
+            self._read_task is None
+            and len(self._listeners) > 0
+            and self._interval is not None
+        ):
             self._read_task = asyncio.create_task(self._read_coroutine())
             _add_background_task(self._read_task)
 
@@ -441,7 +449,7 @@ class BenQProjector(ABC):
         if listener is not None:
             self._listeners.append(listener)
 
-            if self._read_task is None:
+            if self._read_task is None and self._interval is not None:
                 self._read_task = asyncio.create_task(self._read_coroutine())
                 _add_background_task(self._read_task)
 
@@ -521,7 +529,7 @@ class BenQProjector(ABC):
                         self._forward_to_listeners("pow", self.power_status)
                         previous_data["pow"] = self.power_status
 
-                await asyncio.sleep(0.1)
+                await asyncio.sleep(self._interval)
             except asyncio.CancelledError:
                 logger.debug("Read coroutine was canceled")
                 break
