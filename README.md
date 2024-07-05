@@ -27,7 +27,8 @@ supports projectors which are of the L, P, T, W and X series but probably also o
 
 ## Hardware
 
-I'm using a generic serial to USB converter to connect to my projector. The projector has a male DB9 connector, thus you need a female conector on your USB converter.
+I'm using a generic serial to USB converter to connect to my projector. The projector has a male
+DB9 connector, thus you need a female conector on your USB converter.
 
 ## Protocol
 
