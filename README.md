@@ -164,8 +164,6 @@ platforms, your donation is greatly appreciated and keeps me motivated:
 If you're in need for a freelance Python developer for your project please contact me, you can find
 my email address on [my GitHub profile](https://github.com/rrooggiieerr).
 
----
-
 [python-shield]: https://img.shields.io/badge/python-3670A0?style=for-the-badge&logo=python&logoColor=ffdd54
 [releases]: https://github.com/rrooggiieerr/benqprojector.py/releases
 [releases-shield]: https://img.shields.io/github/v/release/rrooggiieerr/benqprojector.py?style=for-the-badge
