@@ -661,6 +661,7 @@ class BenQProjector(ABC):
 
         This function detects if the connection uses a prompt.
         """
+        logger.debug("Detecting prompt")
         await self.connection.write(b"\r")
         response = await self.connection.read(10)
         response.strip(WHITESPACE.encode())
@@ -668,7 +669,7 @@ class BenQProjector(ABC):
             logger.debug("Prompt detected")
             return True
 
-            logger.debug("No prompt detected")
+        logger.debug("No prompt detected")
         return False
 
     async def _wait_for_prompt(self) -> bool:
