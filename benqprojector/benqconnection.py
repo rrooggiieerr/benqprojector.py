@@ -118,6 +118,28 @@ class BenQConnection(ABC):
         except TimeoutError:
             return b""
 
+    async def readuntil(self, separator=b'\n'):
+        """
+        Read data until separator is found.
+        """
+        if self._reader.at_eof():
+            return b""
+
+        try:
+            return await asyncio.wait_for(
+                self._reader.readuntil(separator), timeout=self._read_timeout
+            )
+        except asyncio.IncompleteReadError as ex:
+            logger.exception("Incomplete read")
+            if ex.partial is not None:
+                return ex.partial
+            return b""
+        except ConnectionError as ex:
+            await self.close()
+            raise BenQConnectionError(ex.strerror) from ex
+        except TimeoutError:
+            return b""
+
     async def write(self, data: bytes) -> int:
         """
         Output the given string over the connection.

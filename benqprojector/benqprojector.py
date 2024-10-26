@@ -165,6 +165,7 @@ class BenQProjector(ABC):
 
     connection = None
     has_prompt = None
+    _separator = b"\n"
 
     _init: bool = True
     _has_to_wait_for_prompt = True
@@ -334,6 +335,9 @@ class BenQProjector(ABC):
 
         if self.has_prompt is None:
             self.has_prompt = await self._detect_prompt()
+
+        if self.has_prompt is False:
+            self._separator = b'#'
 
         power = None
         try:
@@ -707,7 +711,7 @@ class BenQProjector(ABC):
         response = b""
         last_response = datetime.now()
         while True:
-            _response = await self.connection.readline()
+            _response = await self.connection.readuntil(self._separator)
             if len(_response) > 0:
                 response += _response
                 if any(c in _response for c in END_OF_RESPONSE):
