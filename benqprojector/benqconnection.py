@@ -118,7 +118,7 @@ class BenQConnection(ABC):
         except TimeoutError:
             return b""
 
-    async def readuntil(self, separator=b'\n'):
+    async def readuntil(self, separator=b"\n"):
         """
         Read data until separator is found.
         """

@@ -337,7 +337,7 @@ class BenQProjector(ABC):
             self.has_prompt = await self._detect_prompt()
 
         if self.has_prompt is False:
-            self._separator = b'#'
+            self._separator = b"#"
 
         power = None
         try:
