@@ -35,7 +35,7 @@
 		"vkeystone",
 		"vol"
 	],
-	"sources": ["hdmi", "hdmi2", "rgb", "vid", "ypbr"],
+	"video_sources": ["hdmi", "hdmi2", "rgb", "vid", "ypbr"],
 	"audio_sources": [],
 	"picture_modes": ["bright", "vivid", "cine", "game", "user1", "user2"],
 	"color_temperatures": ["warm", "normal", "cool", "native"],

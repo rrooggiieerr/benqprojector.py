@@ -390,7 +390,7 @@ class BenQProjector(ABC):
             self.projector_config = None
 
         self._supported_commands = await self.get_config("commands")
-        self.video_sources = await self.get_config("sources")
+        self.video_sources = await self.get_config("video_sources")
         self.audio_sources = await self.get_config("audio_sources")
         self.picture_modes = await self.get_config("picture_modes")
         self.color_temperatures = await self.get_config("color_temperatures")
@@ -955,7 +955,7 @@ class BenQProjector(ABC):
         Detect which video sources are supported by the projector.
         """
         self.video_sources = await self._detect_modes(
-            "video sources", "sour", self.projector_config_all.get("sources")
+            "video sources", "sour", self.projector_config_all.get("video_sources")
         )
         return self.video_sources
 

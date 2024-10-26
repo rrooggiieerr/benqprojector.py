@@ -79,7 +79,7 @@
 		"zoomi",
 		"zoomo"
 	],
-	"sources": [
+	"video_sources": [
 		"dp",
 		"dvia",
 		"dvid",

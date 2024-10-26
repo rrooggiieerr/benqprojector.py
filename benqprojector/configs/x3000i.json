@@ -32,7 +32,7 @@
 		"vkeystone",
 		"vol"
 	],
-	"sources": ["hdmi", "hdmi2", "smartsystem"],
+	"video_sources": ["hdmi", "hdmi2", "smartsystem"],
 	"audio_sources": [],
 	"picture_modes": ["bright", "livingroom", "game", "cine", "sport", "user1", "threed"],
 	"color_temperatures": ["warm", "normal", "cool"],

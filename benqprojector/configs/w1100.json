@@ -25,7 +25,7 @@
 		"zoomi",
 		"zoomo"
 	],
-	"sources": ["rgb", "hdmi", "hdmi2", "vid", "svid"],
+	"video_sources": ["rgb", "hdmi", "hdmi2", "vid", "svid"],
 	"audio_sources": [],
 	"picture_modes": ["preset", "cine", "user1", "user2", "dynamic"],
 	"color_temperatures": [],
