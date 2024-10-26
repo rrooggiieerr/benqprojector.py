@@ -943,7 +943,7 @@ class BenQProjector(ABC):
                 await asyncio.sleep(0.2)
 
         # Revert mode back to current mode
-        self.send_command(command, current_mode)
+        await self.send_command(command, current_mode)
 
         if self._interactive:
             print()
