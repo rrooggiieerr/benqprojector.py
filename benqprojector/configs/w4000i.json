@@ -57,7 +57,7 @@
 		"vkeystone",
 		"vol"
 	],
-	"sources": ["hdmi", "hdmi2", "hdmi3", "usbreader"],
+	"video_sources": ["hdmi", "hdmi2", "hdmi3", "usbreader"],
 	"audio_sources": [],
 	"picture_modes": ["bright", "brightcine", "filmmaker", "cine", "user1", "isfday", "isfnight", "threed", "hdr", "hlg"],
 	"color_temperatures": ["warm", "normal", "cool", "native"],
