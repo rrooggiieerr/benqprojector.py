@@ -137,14 +137,10 @@ if __name__ == "__main__":
     elif "host" in args:
         projector = BenQProjectorTelnet(args.host, args.port)
 
-    loop = asyncio.new_event_loop()
-
     try:
         asyncio.run(main(projector, args.action))
     except KeyboardInterrupt:
         # Handle keyboard interrupt
         pass
-    finally:
-        loop.close()
 
     sys.exit(0)
