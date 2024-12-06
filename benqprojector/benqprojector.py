@@ -639,7 +639,7 @@ class BenQProjector(ABC):
         logger.debug("Detecting prompt")
         await self.connection.write(b"\r")
         response = await self.connection.read(10)
-        response.strip(WHITESPACE.encode())
+        response = response.strip(WHITESPACE.encode())
         if response == b">":
             logger.debug("Prompt detected")
             return True
@@ -659,6 +659,7 @@ class BenQProjector(ABC):
         start_time = datetime.now()
         while True:
             response = await self.connection.read(100)
+            response = response.strip(b"\x00")
             if response == b"":
                 await self.connection.write(b"\r")
             elif response[-1:] == b">":
