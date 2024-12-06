@@ -30,7 +30,8 @@ classifiers = [
     "Topic :: Home Automation"
 ]
 dependencies = [
-    "pyserial>=3.5"
+    "pyserial>=3.5",
+    "pyserial-asyncio-fast>=0.14",
 ]
 
 [project.urls]
