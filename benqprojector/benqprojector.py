@@ -469,11 +469,13 @@ class BenQProjector(ABC):
     async def _disconnect(self):
         await self.connection.close()
 
-    async def disconnect(self):
+    async def disconnect(self) -> bool:
         """Disconnect from the BenQ projector."""
         if self.connected():
             await self._cancel_read()
             await self._disconnect()
+
+        return not self.connected()
 
     def add_listener(self, listener=None, command: str = None):
         """
@@ -1277,7 +1279,7 @@ class BenQProjector(ABC):
 
         return True
 
-    async def turn_on(self):
+    async def turn_on(self) -> bool:
         """
         Turn the projector on.
 
@@ -1322,7 +1324,7 @@ class BenQProjector(ABC):
 
         return False
 
-    async def turn_off(self):
+    async def turn_off(self) -> bool:
         """
         Turn the projector off.
 
