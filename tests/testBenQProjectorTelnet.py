@@ -12,7 +12,7 @@ Created on 27 Nov 2022
 import logging
 import unittest
 
-from benqprojector import BenQProjectorTelnet
+from benqprojector.benqprojector import BenQCommand, BenQProjectorTelnet
 
 logger = logging.getLogger(__name__)
 
@@ -46,5 +46,5 @@ class Test(unittest.IsolatedAsyncioTestCase):
         self._projector.has_prompt = True
         await self._projector._connect()
         # await self._projector._wait_for_prompt()
-        result = await self._projector._send_command("pow")
+        result = await self._projector._send_command(BenQCommand("pow"))
         self.assertTrue(result)

@@ -12,7 +12,7 @@ Created on 27 Nov 2022
 import logging
 import unittest
 
-from benqprojector import BenQProjectorSerial
+from benqprojector.benqprojector import BenQCommand, BenQProjectorSerial
 
 logger = logging.getLogger(__name__)
 
@@ -46,5 +46,5 @@ class Test(unittest.IsolatedAsyncioTestCase):
     async def test__send_command(self):
         await self._projector._connect()
         await self._projector._wait_for_prompt()
-        result = await self._projector._send_command("pow")
-        self.assertTrue(result)
+        result = await self._projector._send_command(BenQCommand("pow"))
+        self.assertEqual("off", result)

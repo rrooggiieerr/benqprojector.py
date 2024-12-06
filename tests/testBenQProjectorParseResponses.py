@@ -12,7 +12,7 @@ Created on 27 Nov 2022
 import logging
 import unittest
 
-from benqprojector import BenQProjector
+from benqprojector import BenQCommand, BenQProjector
 
 logger = logging.getLogger(__name__)
 
@@ -28,28 +28,26 @@ class Test(unittest.TestCase):
         # Don't need to connect to the projector to test parsing responses
 
     def test_parse_response_w1100_bri(self):
-        # The W1100 ltim command does include spaces and does not end with #
-        response = self._projector._parse_response("bri", "?", "*bri=?#", "*bri= 51")
+        # The W1100 bri command does include spaces and does not end with #
+        response = self._projector._parse_response(BenQCommand("bri", "?"), "*bri= 51")
         self.assertEqual("51", response)
 
     def test_parse_response_w1100_ltim(self):
         # The W1100 ltim command does include spaces and does not end with #
-        response = self._projector._parse_response(
-            "ltim", "?", "*ltim=?#", "*ltim= 1383"
-        )
+        response = self._projector._parse_response(BenQCommand("ltim"), "*ltim= 1383")
         self.assertEqual("1383", response)
 
     def test_parse_response_w1100_modelname(self):
-        # The W1110 modelname command returns an lowercase response #
+        # The W1110 modelname command returns an lowercase response
         response = self._projector._parse_response(
-            "modelname", "?", "*modelname=?#", "*modelname=W1100#"
+            BenQCommand("modelname"), "*modelname=W1100#"
         )
         self.assertEqual("w1100", response)
 
     def test_parse_response_w1110_modelname(self):
-        # The W1110 modelname command returns an uppercase response #
+        # The W1110 modelname command returns an uppercase response
         response = self._projector._parse_response(
-            "modelname", "?", "*modelname=?#", "*MODELNAME=W1110#"
+            BenQCommand("modelname"), "*MODELNAME=W1110#"
         )
         self.assertEqual("w1110", response)
 
