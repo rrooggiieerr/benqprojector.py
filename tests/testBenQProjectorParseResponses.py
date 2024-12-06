@@ -12,7 +12,13 @@ Created on 27 Nov 2022
 import logging
 import unittest
 
-from benqprojector import BenQCommand, BenQProjector
+from benqprojector.benqprojector import (
+    BenQCommand,
+    BenQProjector,
+    BlockedItemError,
+    IllegalFormatError,
+    UnsupportedItemError,
+)
 
 logger = logging.getLogger(__name__)
 
@@ -50,6 +56,36 @@ class Test(unittest.TestCase):
             BenQCommand("modelname"), "*MODELNAME=W1110#"
         )
         self.assertEqual("w1110", response)
+
+    def test_parse_response_w700_modelname(self):
+        # The W700 modelname command returns only the model name and does not start with
+        # *MODELNAME= and does not end with #
+        response = self._projector._parse_response(BenQCommand("modelname"), "W700")
+        self.assertEqual("w700", response)
+
+    def test_parse_response_illegal_format(self):
+        self.assertRaises(
+            IllegalFormatError,
+            self._projector._parse_response,
+            BenQCommand("whatever"),
+            "*Illegal format#",
+        )
+
+    def test_parse_response_unsupported_item(self):
+        self.assertRaises(
+            UnsupportedItemError,
+            self._projector._parse_response,
+            BenQCommand("whatever"),
+            "*Unsupported item#",
+        )
+
+    def test_parse_response_block_item(self):
+        self.assertRaises(
+            BlockedItemError,
+            self._projector._parse_response,
+            BenQCommand("whatever"),
+            "*Block item#",
+        )
 
 
 if __name__ == "__main__":
