@@ -612,73 +612,12 @@ class BenQProjector(ABC):
         except TimeoutError as ex:
             raise TooBusyError(command) from ex
 
-        response = None
-
         try:
-            _command = f"*{command.command}={command.action}#"
-            await self._send_raw_command(_command)
+            await self._send_raw_command(command.raw_command)
 
-            empty_line_count = 0
-            echo_received = None
-            previous_response = None
-            while True:
-                if empty_line_count > 5:
-                    if self._init:
-                        logger.error(
-                            "More than 5 empty responses, is your cable right?"
-                        )
-                    if echo_received and previous_response:
-                        # It's possible that the previous response is
-                        # misinterpreted as being the command echo while it
-                        # actually was the command response.
-                        # In that case we continue the response processing
-                        # using the previous response.
-                        response = previous_response
-                    else:
-                        raise EmptyResponseError(command)
-                elif (response := await self._read_response()) == "":
-                    logger.debug("Empty line")
-                    # Empty line
-                    empty_line_count += 1
-                    # Some projectors (X3000i) seem to return an empty line
-                    # instead of a command echo in some cases.
-                    # For that reason only give the projector some more time
-                    # to respond after more than 1 empty line.
-                    if empty_line_count > 1:
-                        # Give the projector some more time to response
-                        await asyncio.sleep(0.05)
-                    continue
+            raw_response = await self._read_raw_response(command)
 
-                if response == ">":
-                    logger.debug("Response is command prompt >")
-                    self._has_to_wait_for_prompt = True
-                    continue
-
-                if action == "?" and not echo_received and response == _command:
-                    # Command echo.
-                    logger.debug("Command successfully sent")
-                    echo_received = True
-                    self._expect_command_echo = True
-                    continue
-
-                if not echo_received and response == f">{_command}":
-                    # Command echo.
-                    logger.debug("Command successfully sent")
-                    echo_received = True
-                    self._expect_command_echo = True
-                    continue
-
-                if self._expect_command_echo and not echo_received:
-                    if action != "?" and response == _command:
-                        # Command echo.
-                        logger.debug("Command successfully sent")
-                        echo_received = True
-                        previous_response = response
-                        continue
-                    logger.warning("No command echo received")
-                    self._expect_command_echo = False
-
-                return self._parse_response(command, action, _command, response)
+            return self._parse_response(command, raw_response)
         except BenQProjectorError as ex:
             ex.command = command
             raise
@@ -763,6 +702,72 @@ class BenQProjector(ABC):
             logger.debug("Waiting for response")
             await asyncio.sleep(0.05)
 
+    async def _read_raw_response(self, command: BenQCommand) -> str:
+        response = None
+        empty_line_count = 0
+        echo_received = None
+        previous_response = None
+        while True:
+            if empty_line_count > 5:
+                if self._init:
+                    logger.error("More than 5 empty responses, is your cable right?")
+                if echo_received and previous_response:
+                    # It's possible that the previous response is
+                    # misinterpreted as being the command echo while it
+                    # actually was the command response.
+                    # In that case we continue the response processing
+                    # using the previous response.
+                    response = previous_response
+                else:
+                    raise EmptyResponseError(command)
+            elif (response := await self._read_response()) == "":
+                logger.debug("Empty line")
+                # Empty line
+                empty_line_count += 1
+                # Some projectors (X3000i) seem to return an empty line
+                # instead of a command echo in some cases.
+                # For that reason only give the projector some more time
+                # to respond after more than 1 empty line.
+                if empty_line_count > 1:
+                    # Give the projector some more time to response
+                    await asyncio.sleep(0.05)
+                continue
+
+            if response == ">":
+                logger.debug("Response is command prompt >")
+                self._has_to_wait_for_prompt = True
+                continue
+
+            if (
+                command.action == "?"
+                and not echo_received
+                and response == command.raw_command
+            ):
+                # Command echo.
+                logger.debug("Command successfully sent")
+                echo_received = True
+                self._expect_command_echo = True
+                continue
+
+            if not echo_received and response == f">{command.raw_command}":
+                # Command echo.
+                logger.debug("Command successfully sent")
+                echo_received = True
+                self._expect_command_echo = True
+                continue
+
+            if self._expect_command_echo and not echo_received:
+                if command.action != "?" and response == command.raw_command:
+                    # Command echo.
+                    logger.debug("Command successfully sent")
+                    echo_received = True
+                    previous_response = response
+                    continue
+                logger.warning("No command echo received")
+                self._expect_command_echo = False
+
+            return response
+
     async def _send_raw_command(self, command: str) -> str:
         """
         Send a raw command to the BenQ projector.
@@ -839,9 +844,8 @@ class BenQProjector(ABC):
             await self._send_raw_command(command.raw_command)
 
             # Read and log the response
-            while _response := await self._read_response():
-                logger.debug(_response)
-                raw_response += _response
+            raw_response = await self._read_raw_response(command)
+            logger.debug(raw_response)
         except BenQProjectorError as ex:
             ex.command = command
             raise
