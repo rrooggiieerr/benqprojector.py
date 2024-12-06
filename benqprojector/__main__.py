@@ -71,11 +71,11 @@ async def main(projector: BenQProjector, action: str):
 
             _LOGGER.info("Supported video sources: %s", projector.video_sources)
         elif action == "on":
-            if await projector.turn_on():
-                pass
+            if not await projector.turn_on():
+                sys.exit(1)
         elif action == "off":
-            if await projector.turn_off():
-                pass
+            if not await projector.turn_off():
+                sys.exit(1)
         elif action == "monitor":
             projector.add_listener(_listener)
 
