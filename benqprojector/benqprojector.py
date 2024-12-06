@@ -590,12 +590,14 @@ class BenQProjector(ABC):
         """
         return self._supported_commands is None or command in self._supported_commands
 
-    async def _send_command(self, command: BenQCommand) -> str:
+    async def _send_command(
+        self, command: BenQCommand, check_supported: bool = True
+    ) -> str:
         """
         Send a command to the BenQ projector.
         """
 
-        if not self.supports_command(command.command):
+        if check_supported and not self.supports_command(command.command):
             logger.warning("Command %s not supported", command.command)
             return None
 
@@ -811,14 +813,18 @@ class BenQProjector(ABC):
 
         return response
 
-    async def send_command(self, command: str, action: str = "?") -> str:
+    async def send_command(
+        self, command: str, action: str = "?", check_supported: bool = True
+    ) -> str:
         """
         Send a command to the BenQ projector.
         """
         response = None
 
         try:
-            response = await self._send_command(BenQCommand(command, action))
+            response = await self._send_command(
+                BenQCommand(command, action), check_supported
+            )
         except BenQProjectorError:
             pass
 
