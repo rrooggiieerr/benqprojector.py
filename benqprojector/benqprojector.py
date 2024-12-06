@@ -30,8 +30,8 @@ logger = logging.getLogger(__name__)
 
 BAUD_RATES = [2400, 4800, 9600, 14400, 19200, 38400, 57600, 115200]
 
-RESPONSE_RE_STRICT = r"^\*([^=]*)=([^#]*)#$"
-RESPONSE_RE_LOSE = r"^\*?([^=]*)=([^#]*)#?$"
+RESPONSE_RE_STRICT = r"^\*[^=]*=([^#]*)#$"
+RESPONSE_RE_LOSE = r"^\*?[^=]*=([^#]*)#?$"
 
 WHITESPACE = string.whitespace + "\x00"
 END_OF_RESPONSE = b"#\n\r\x00"
@@ -601,7 +601,7 @@ class BenQProjector(ABC):
             logger.warning("Command %s not supported", command.command)
             return None
 
-        if await self._connect() is False:
+        if not await self._connect():
             logger.error("Connection not available")
             return None
 
@@ -800,11 +800,16 @@ class BenQProjector(ABC):
                 logger.warning("Command %s blocked item", command.raw_command)
             raise BlockedItemError(command)
 
-        matches = self._response_re.match(response)
+        if command.action is None:
+            matches = re.compile(r"^\*?([^#]*?)#?$").match(response)
+            pass
+        else:
+            matches = self._response_re.match(response)
+
         if not matches:
             logger.error("Unexpected response format, response: %s", response)
             raise InvallidResponseError(command, response)
-        response: str = matches.group(2)
+        response: str = matches.group(1)
 
         # Strip any spaces from the response
         response = response.strip(WHITESPACE)

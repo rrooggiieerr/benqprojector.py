@@ -87,6 +87,11 @@ class Test(unittest.TestCase):
             "*Block item#",
         )
 
+    def test_parse_response_up(self):
+        # Some commands don't take any actions, like the up command for navigating the menu.
+        response = self._projector._parse_response(BenQCommand("up", None), "*UP#")
+        self.assertEqual("up", response)
+
 
 if __name__ == "__main__":
     # import sys;sys.argv = ['', 'Test.testName']
