@@ -48,3 +48,15 @@ class Test(unittest.IsolatedAsyncioTestCase):
         # await self._projector._wait_for_prompt()
         result = await self._projector._send_command(BenQCommand("pow"))
         self.assertTrue(result)
+
+    async def test_send_command(self):
+        self._projector.has_prompt = True
+        await self._projector._connect()
+        result = await self._projector.send_command("pow")
+        self.assertEqual("off", result)
+
+    async def test_send_raw_command(self):
+        self._projector.has_prompt = True
+        await self._projector._connect()
+        result = await self._projector.send_raw_command("*pow=?#")
+        self.assertEqual("*POW=OFF#", result)
