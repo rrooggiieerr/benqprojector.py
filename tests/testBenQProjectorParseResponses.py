@@ -63,6 +63,11 @@ class Test(unittest.TestCase):
         response = self._projector._parse_response(BenQCommand("modelname"), "W700")
         self.assertEqual("w700", response)
 
+    def test_parse_response_w6000l_modelname(self):
+        # The W6000L modelname command returns only the model name
+        response = self._projector._parse_response(BenQCommand("modelname"), "W6000L")
+        self.assertEqual("w6000l", response)
+
     def test_parse_response_illegal_format(self):
         self.assertRaises(
             IllegalFormatError,
