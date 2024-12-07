@@ -71,11 +71,16 @@ The PJLink protocol is covered by other libraries.
 
 The following projectors are known to work:
 
+* HT4550i
 * MW519
 * TH585
+* TK800m
 * W1070
 * W1100
 * W1110
+* W1140
+* W1250
+* W4000i
 * X3000i
 
 The following projectors are not tested but use the same protocol according to the documentation:
