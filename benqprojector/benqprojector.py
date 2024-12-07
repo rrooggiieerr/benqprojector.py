@@ -395,7 +395,7 @@ class BenQProjector(ABC):
 
         model = None
         try:
-            model = await self._send_command(BenQCommand("modelname"))
+            model = await self._send_command(BenQCommand("modelname"), lowercase_response=False)
             assert model is not None, "Failed to retrieve projector model"
         except IllegalFormatError as ex:
             # W1000 does not seem to return projector model, but gives an illegal
@@ -592,7 +592,7 @@ class BenQProjector(ABC):
         return self._supported_commands is None or command in self._supported_commands
 
     async def _send_command(
-        self, command: BenQCommand, check_supported: bool = True
+        self, command: BenQCommand, check_supported: bool = True, lowercase_response: bool = True
     ) -> str:
         """
         Send a command to the BenQ projector.
@@ -620,7 +620,7 @@ class BenQProjector(ABC):
 
             raw_response = await self._read_raw_response(command)
 
-            return self._parse_response(command, raw_response)
+            return self._parse_response(command, raw_response, lowercase_response)
         except BenQProjectorError as ex:
             ex.command = command
             raise
@@ -782,9 +782,10 @@ class BenQProjector(ABC):
         logger.debug("command %s", command)
         await self.connection.write(f"{command}\r".encode("ascii"))
 
-    def _parse_response(self, command: BenQCommand, response):
-        # Lowercase the response
-        response = response.lower()
+    def _parse_response(self, command: BenQCommand, response, lowercase: bool = True):
+        if lowercase:
+            # Lowercase the response
+            response = response.lower()
 
         if response in ["*illegal format#", "illegal format"]:
             if not self._interactive:

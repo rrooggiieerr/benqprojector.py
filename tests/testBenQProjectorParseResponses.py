@@ -44,29 +44,29 @@ class Test(unittest.TestCase):
         self.assertEqual("1383", response)
 
     def test_parse_response_w1100_modelname(self):
-        # The W1110 modelname command returns an lowercase response
+        # The W1110 modelname command returns a lowercase response
         response = self._projector._parse_response(
-            BenQCommand("modelname"), "*modelname=W1100#"
+            BenQCommand("modelname"), "*modelname=W1100#", False
         )
-        self.assertEqual("w1100", response)
+        self.assertEqual("W1100", response)
 
     def test_parse_response_w1110_modelname(self):
         # The W1110 modelname command returns an uppercase response
         response = self._projector._parse_response(
-            BenQCommand("modelname"), "*MODELNAME=W1110#"
+            BenQCommand("modelname"), "*MODELNAME=W1110#", False
         )
-        self.assertEqual("w1110", response)
+        self.assertEqual("W1110", response)
 
     def test_parse_response_w700_modelname(self):
         # The W700 modelname command returns only the model name and does not start with
         # *MODELNAME= and does not end with #
-        response = self._projector._parse_response(BenQCommand("modelname"), "W700")
-        self.assertEqual("w700", response)
+        response = self._projector._parse_response(BenQCommand("modelname"), "W700", False)
+        self.assertEqual("W700", response)
 
     def test_parse_response_w6000l_modelname(self):
         # The W6000L modelname command returns only the model name
-        response = self._projector._parse_response(BenQCommand("modelname"), "W6000L")
-        self.assertEqual("w6000l", response)
+        response = self._projector._parse_response(BenQCommand("modelname"), "W6000L", False)
+        self.assertEqual("W6000L", response)
 
     def test_parse_response_illegal_format(self):
         self.assertRaises(
