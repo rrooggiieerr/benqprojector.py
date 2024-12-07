@@ -32,6 +32,7 @@ BAUD_RATES = [2400, 4800, 9600, 14400, 19200, 38400, 57600, 115200]
 
 RESPONSE_RE_STRICT = r"^\*[^=]*=([^#]*)#$"
 RESPONSE_RE_LOSE = r"^\*?[^=]*=([^#]*)#?$"
+RESPONSE_RE_STATE_ONLY = re.compile(r"^\*?([^#]*?)#?$")
 
 WHITESPACE = string.whitespace + "\x00"
 END_OF_RESPONSE = b"#\n\r\x00"
@@ -801,10 +802,15 @@ class BenQProjector(ABC):
             raise BlockedItemError(command)
 
         if command.action is None:
-            matches = re.compile(r"^\*?([^#]*?)#?$").match(response)
+            matches = RESPONSE_RE_STATE_ONLY.match(response)
             pass
         else:
             matches = self._response_re.match(response)
+            if not matches and command.command == "modelname":
+                # Some projectors only return the model name withouth the modelname command
+                # #w700* instad of #modelname=w700*
+                matches = RESPONSE_RE_STATE_ONLY.match(response)
+                
 
         if not matches:
             logger.error("Unexpected response format, response: %s", response)
