@@ -192,10 +192,10 @@ class TooBusyError(BenQProjectorError):
 
 class BenQProjector(ABC):
     """
-    BenQProjector class for controlling BenQ projectors.
+    BenQProjector base class for controlling BenQ projectors.
     """
 
-    connection = None
+    connection: BenQConnection | None = None
     # Native networked projectors don't seem to have a command prompt, the code tries to detect if this is the case
     has_prompt = None
     _separator = b"\n"
@@ -340,10 +340,7 @@ class BenQProjector(ABC):
             await self.connection.open()
             logger.debug("Connected to %s", self.connection)
 
-        if self.connected():
-            return True
-
-        return False
+        return self.connected()
 
     async def connect(self, loop=None, interval: float = None) -> bool:
         """
@@ -462,10 +459,7 @@ class BenQProjector(ABC):
         return True
 
     def connected(self) -> bool:
-        if self.connection and self.connection.is_open():
-            return True
-
-        return False
+        return self.connection and self.connection.is_open()
 
     async def _disconnect(self):
         await self.connection.close()
@@ -498,7 +492,7 @@ class BenQProjector(ABC):
                 listener(command, data)
             # pylint: disable=broad-exception-caught
             except Exception:
-                logger.exception("Exception in Callback: %s", listener)
+                logger.exception("Exception in listener: %s", listener)
 
     async def _cancel_read(self) -> bool:
         if self._read_task is not None and not (
@@ -575,10 +569,6 @@ class BenQProjector(ABC):
             except (BrokenPipeError, ConnectionResetError, TimeoutError):
                 logger.exception("Error communicating with BenQ projector")
                 await self._disconnect()
-                # break
-            except Exception:
-                logger.exception("Unexpected error")
-                break
 
         self._read_task = None
         logger.debug("Read coroutine stopped")
@@ -1486,8 +1476,7 @@ class BenQProjectorSerial(BenQProjector):
 
     def __init__(
         self,
-        serial_port: str,  # The serial port where the RS-485 interface and
-        # screen is connected to.
+        serial_port: str,
         baud_rate: int,
         model_hint: str = None,
         strict_validation: bool = False,
