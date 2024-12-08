@@ -53,10 +53,10 @@ class BenQConnection(ABC):
         raise NotImplementedError
 
     def is_open(self):
-        if self._writer is not None:
-            return True
-
-        return False
+        """
+        Checks if the connection is open.
+        """
+        return self._writer is not None
 
     async def close(self) -> bool:
         """
@@ -80,6 +80,9 @@ class BenQConnection(ABC):
         return False
 
     async def reset(self) -> bool:
+        """
+        Resets the reader and drains the writer of the connection.
+        """
         await self.read(-1)
         await self._writer.drain()
         return True
