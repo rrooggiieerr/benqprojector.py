@@ -53,23 +53,17 @@ def _add_background_task(task: asyncio.Task) -> None:
     task.add_done_callback(background_tasks.discard)
 
 
-class BenQCommand:
+class BenQRawCommand:
     """
-    BenQ Command.
+    BenQ Raw Command.
     """
 
-    _command: str | None = None
-    _action: str | None = None
+    def __init__(self, raw_command: str):
+        assert raw_command is not None
 
-    def __init__(self, command: str, action: str | None = "?"):
-        assert command is not None
-
-        self._command = command.lower()
-        self._action = action
-        if action is None:
-            self._raw_command = f"*{self.command}#"
-        else:
-            self._raw_command = f"*{self.command}={self.action}#"
+        self._command = None
+        self._action = None
+        self._raw_command = raw_command
 
     @property
     def command(self) -> str | None:
@@ -93,17 +87,23 @@ class BenQCommand:
         return self._raw_command
 
 
-class BenQRawCommand(BenQCommand):
+class BenQCommand(BenQRawCommand):
     """
-    BenQ Raw Command.
+    BenQ Command.
     """
 
-    def __init__(self, raw_command: str):
-        assert raw_command is not None
+    def __init__(self, command: str, action: str | None = "?"):
+        assert command is not None
 
-        self._command = None
-        self._action = None
-        self._raw_command = raw_command
+        command = command.lower()
+        if action is None:
+            raw_command = f"*{command}#"
+        else:
+            raw_command = f"*{command}={action}#"
+        super().__init__(raw_command)
+
+        self._command = command.lower()
+        self._action = action
 
 
 class BenQProjectorError(Exception):
