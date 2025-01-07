@@ -9,7 +9,6 @@ Created on 27 Nov 2022
 """
 
 import logging
-import time
 import unittest
 
 from benqprojector import BenQProjectorSerial
