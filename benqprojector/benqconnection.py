@@ -112,10 +112,9 @@ class BenQConnection(ABC):
             if ex.errno == 113:
                 await self.close()
                 raise BenQConnectionError(ex.strerror) from ex
-            else:
-                logger.exception("Unhandeled OSError")
-                await self.close()
-                return b""
+            logger.exception("Unhandeled OSError")
+            await self.close()
+            return b""
 
     async def readline(self) -> bytes:
         """
@@ -137,10 +136,9 @@ class BenQConnection(ABC):
             if ex.errno == 113:
                 await self.close()
                 raise BenQConnectionError(ex.strerror) from ex
-            else:
-                logger.exception("Unhandeled OSError")
-                await self.close()
-                return b""
+            logger.exception("Unhandeled OSError")
+            await self.close()
+            return b""
 
     async def readuntil(self, separator=b"\n"):
         """
@@ -167,10 +165,9 @@ class BenQConnection(ABC):
             if ex.errno == 113:
                 await self.close()
                 raise BenQConnectionError(ex.strerror) from ex
-            else:
-                logger.exception("Unhandeled OSError")
-                await self.close()
-                return b""
+            logger.exception("Unhandeled OSError")
+            await self.close()
+            return b""
 
     async def write(self, data: bytes) -> int:
         """
@@ -188,9 +185,8 @@ class BenQConnection(ABC):
             if ex.errno == 113:
                 await self.close()
                 raise BenQConnectionError(ex.strerror) from ex
-            else:
-                logger.exception("Unhandeled OSError")
-                await self.close()
+            logger.exception("Unhandeled OSError")
+            await self.close()
 
     async def flush(self) -> None:
         """
@@ -271,7 +267,6 @@ class BenQTelnetConnection(BenQConnection):
             if ex.errno == 113:
                 await self.close()
                 raise BenQConnectionError(ex.strerror) from ex
-            else:
-                logger.exception("Unhandeled OSError")
+            logger.exception("Unhandeled OSError")
 
         return False
