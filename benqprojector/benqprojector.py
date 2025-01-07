@@ -54,6 +54,9 @@ def _add_background_task(task: asyncio.Task) -> None:
 
 
 class BenQCommand:
+    """
+    BenQ Command.
+    """
     _command: str | None = None
     _action: str | None = None
 
@@ -69,18 +72,30 @@ class BenQCommand:
 
     @property
     def command(self) -> str | None:
+        """
+        The command.
+        """
         return self._command
 
     @property
     def action(self) -> str | None:
+        """
+        The command action.
+        """
         return self._action
 
     @property
     def raw_command(self) -> str:
+        """
+        The raw command.
+        """
         return self._raw_command
 
 
 class BenQRawCommand(BenQCommand):
+    """
+    BenQ Raw Command.
+    """
     def __init__(self, raw_command: str):
         assert raw_command is not None
 
@@ -90,7 +105,9 @@ class BenQRawCommand(BenQCommand):
 
 
 class BenQProjectorError(Exception):
-    """Generic BenQ Projector error."""
+    """
+    Generic BenQ Projector error.
+    """
 
     def __init__(self, command: BenQCommand | None = None):
         self.command = command
@@ -299,6 +316,9 @@ class BenQProjector(ABC):
         self._listener_commands = []
 
     def busy(self):
+        """
+        True if the connection is already in use.
+        """
         return self._connection_lock.locked()
 
     def _read_config(self, model: str):
@@ -313,6 +333,9 @@ class BenQProjector(ABC):
         return None
 
     async def get_config(self, key):
+        """
+        Get the config for the given key.
+        """
         if not self.projector_config_all:
             self.projector_config_all = await self._loop.run_in_executor(
                 None, self._read_config, "all"
@@ -459,13 +482,18 @@ class BenQProjector(ABC):
         return True
 
     def connected(self) -> bool:
+        """
+        True if there is a connection with the projector.
+        """
         return self.connection and self.connection.is_open()
 
     async def _disconnect(self):
         await self.connection.close()
 
     async def disconnect(self) -> bool:
-        """Disconnect from the BenQ projector."""
+        """
+        Disconnect from the BenQ projector.
+        """
         if self.connected():
             await self._cancel_read()
             await self._disconnect()
@@ -1119,7 +1147,9 @@ class BenQProjector(ABC):
         return config
 
     async def update_power(self) -> bool:
-        """Update the current power state."""
+        """
+        Update the current power state.
+        """
         response = await self.send_command("pow")
         if response is None:
             if self.power_status == self.POWERSTATUS_POWERINGON:
@@ -1160,7 +1190,9 @@ class BenQProjector(ABC):
         return False
 
     async def update_volume(self) -> bool:
-        """Update the current volume state."""
+        """
+        Update the current volume state.
+        """
         if self.supports_command("mute"):
             self.muted = await self.send_command("mute") == "on"
             logger.debug("Muted: %s", self.muted)
@@ -1177,7 +1209,9 @@ class BenQProjector(ABC):
             self.volume = volume
 
     async def update_video_source(self) -> bool:
-        """Update the current video source state."""
+        """
+        Update the current video source state.
+        """
         if self.supports_command("sour"):
             self.video_source = await self.send_command("sour")
             logger.debug("Video source: %s", self.video_source)
@@ -1385,7 +1419,9 @@ class BenQProjector(ABC):
         return False
 
     async def mute(self):
-        """Mutes the volume."""
+        """
+        Mutes the volume.
+        """
         response = await self.send_command("mute", "on")
         if response == "on":
             self.muted = True
@@ -1394,7 +1430,9 @@ class BenQProjector(ABC):
         return False
 
     async def unmute(self):
-        """Unmutes the volume."""
+        """
+        Unmutes the volume.
+        """
         response = await self.send_command("mute", "off")
         if response == "off":
             self.muted = False
@@ -1403,7 +1441,9 @@ class BenQProjector(ABC):
         return False
 
     async def volume_up(self) -> None:
-        """Increase volume."""
+        """
+        Increase volume.
+        """
         if self.volume is None:
             self.update_volume()
         elif self.volume >= 20:  # Can't go higher than 20
@@ -1416,7 +1456,9 @@ class BenQProjector(ABC):
         return False
 
     async def volume_down(self) -> None:
-        """Decrease volume."""
+        """
+        Decrease volume.
+        """
         if self.volume is None:
             self.update_volume()
         elif self.volume <= 0:  # Can't go lower than 0
@@ -1429,7 +1471,9 @@ class BenQProjector(ABC):
         return False
 
     async def volume_level(self, level) -> None:
-        """Set volume to a given level."""
+        """
+        Set volume to a given level.
+        """
         if self.volume == level:
             return True
 
@@ -1454,7 +1498,9 @@ class BenQProjector(ABC):
         return True
 
     async def select_video_source(self, video_source: str):
-        """Select projector video source."""
+        """
+        Select projector video source.
+        """
         video_source = video_source.lower()
 
         if video_source not in self.video_sources:
