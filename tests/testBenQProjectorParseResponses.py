@@ -60,12 +60,16 @@ class Test(unittest.TestCase):
     def test_parse_response_w700_modelname(self):
         # The W700 modelname command returns only the model name and does not start with
         # *MODELNAME= and does not end with #
-        response = self._projector._parse_response(BenQCommand("modelname"), "W700", False)
+        response = self._projector._parse_response(
+            BenQCommand("modelname"), "W700", False
+        )
         self.assertEqual("W700", response)
 
     def test_parse_response_w6000l_modelname(self):
         # The W6000L modelname command returns only the model name
-        response = self._projector._parse_response(BenQCommand("modelname"), "W6000L", False)
+        response = self._projector._parse_response(
+            BenQCommand("modelname"), "W6000L", False
+        )
         self.assertEqual("W6000L", response)
 
     def test_parse_response_illegal_format(self):

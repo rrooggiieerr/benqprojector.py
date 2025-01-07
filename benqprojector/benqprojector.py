@@ -57,6 +57,7 @@ class BenQCommand:
     """
     BenQ Command.
     """
+
     _command: str | None = None
     _action: str | None = None
 
@@ -96,6 +97,7 @@ class BenQRawCommand(BenQCommand):
     """
     BenQ Raw Command.
     """
+
     def __init__(self, raw_command: str):
         assert raw_command is not None
 
@@ -415,7 +417,9 @@ class BenQProjector(ABC):
 
         model = None
         try:
-            model = await self._send_command(BenQCommand("modelname"), lowercase_response=False)
+            model = await self._send_command(
+                BenQCommand("modelname"), lowercase_response=False
+            )
             assert model is not None, "Failed to retrieve projector model"
         except IllegalFormatError as ex:
             # W1000 does not seem to return projector model, but gives an illegal
@@ -610,7 +614,10 @@ class BenQProjector(ABC):
         return self._supported_commands is None or command in self._supported_commands
 
     async def _send_command(
-        self, command: BenQCommand, check_supported: bool = True, lowercase_response: bool = True
+        self,
+        command: BenQCommand,
+        check_supported: bool = True,
+        lowercase_response: bool = True,
     ) -> str:
         """
         Send a command to the BenQ projector.
@@ -831,7 +838,6 @@ class BenQProjector(ABC):
                 # Some projectors only return the model name withouth the modelname command
                 # #w700* instad of #modelname=w700*
                 matches = RESPONSE_RE_STATE_ONLY.match(response)
-                
 
         if not matches:
             logger.error("Unexpected response format, response: %s", response)
