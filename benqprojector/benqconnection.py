@@ -68,6 +68,11 @@ class BenQConnection(ABC):
                 await self._writer.wait_closed()
             except ConnectionError:
                 logger.exception("Connection error")
+            except OSError as ex:
+                if ex.errno == 113:
+                    logger.exception("Connection error")
+                else:
+                    logger.exception("Unhandeled OSError")
 
             self._reader = None
             self._writer = None
@@ -101,6 +106,14 @@ class BenQConnection(ABC):
         except ConnectionError as ex:
             await self.close()
             raise BenQConnectionError(ex.strerror) from ex
+        except OSError as ex:
+            if ex.errno == 113:
+                await self.close()
+                raise BenQConnectionError(ex.strerror) from ex
+            else:
+                logger.exception("Unhandeled OSError")
+                await self.close()
+                return b""
         except TimeoutError:
             return b""
 
@@ -118,6 +131,14 @@ class BenQConnection(ABC):
         except ConnectionError as ex:
             await self.close()
             raise BenQConnectionError(ex.strerror) from ex
+        except OSError as ex:
+            if ex.errno == 113:
+                await self.close()
+                raise BenQConnectionError(ex.strerror) from ex
+            else:
+                logger.exception("Unhandeled OSError")
+                await self.close()
+                return b""
         except TimeoutError:
             return b""
 
@@ -140,6 +161,14 @@ class BenQConnection(ABC):
         except ConnectionError as ex:
             await self.close()
             raise BenQConnectionError(ex.strerror) from ex
+        except OSError as ex:
+            if ex.errno == 113:
+                await self.close()
+                raise BenQConnectionError(ex.strerror) from ex
+            else:
+                logger.exception("Unhandeled OSError")
+                await self.close()
+                return b""
         except TimeoutError:
             return b""
 
@@ -155,6 +184,13 @@ class BenQConnection(ABC):
         except ConnectionError as ex:
             await self.close()
             raise BenQConnectionError(ex.strerror) from ex
+        except OSError as ex:
+            if ex.errno == 113:
+                await self.close()
+                raise BenQConnectionError(ex.strerror) from ex
+            else:
+                logger.exception("Unhandeled OSError")
+                await self.close()
 
     async def flush(self) -> None:
         """
@@ -231,3 +267,9 @@ class BenQTelnetConnection(BenQConnection):
             raise BenQConnectionTimeoutError(str(ex)) from ex
         except socket.gaierror as ex:
             raise BenQConnectionError(ex.strerror) from ex
+        except OSError as ex:
+            if ex.errno == 113:
+                await self.close()
+                raise BenQConnectionError(ex.strerror) from ex
+            else:
+                logger.exception("Unhandeled OSError")
