@@ -829,12 +829,11 @@ class BenQProjector(ABC):
 
         if command.action is None:
             matches = RESPONSE_RE_STATE_ONLY.match(response)
-            pass
         else:
             matches = self._response_re.match(response)
             if matches and matches.group(1).lower() != command.command:
                 raise InvallidResponseError(command, response)
-            elif not matches and command.command == "modelname":
+            if not matches and command.command == "modelname":
                 # Some projectors only return the model name withouth the modelname command
                 # #w700* instad of #modelname=w700*
                 matches = RESPONSE_RE_STATE_ONLY.match(response)
