@@ -106,6 +106,8 @@ class BenQConnection(ABC):
         except ConnectionError as ex:
             await self.close()
             raise BenQConnectionError(ex.strerror) from ex
+        except TimeoutError:
+            return b""
         except OSError as ex:
             if ex.errno == 113:
                 await self.close()
@@ -114,8 +116,6 @@ class BenQConnection(ABC):
                 logger.exception("Unhandeled OSError")
                 await self.close()
                 return b""
-        except TimeoutError:
-            return b""
 
     async def readline(self) -> bytes:
         """
@@ -131,6 +131,8 @@ class BenQConnection(ABC):
         except ConnectionError as ex:
             await self.close()
             raise BenQConnectionError(ex.strerror) from ex
+        except TimeoutError:
+            return b""
         except OSError as ex:
             if ex.errno == 113:
                 await self.close()
@@ -139,8 +141,6 @@ class BenQConnection(ABC):
                 logger.exception("Unhandeled OSError")
                 await self.close()
                 return b""
-        except TimeoutError:
-            return b""
 
     async def readuntil(self, separator=b"\n"):
         """
@@ -161,6 +161,8 @@ class BenQConnection(ABC):
         except ConnectionError as ex:
             await self.close()
             raise BenQConnectionError(ex.strerror) from ex
+        except TimeoutError:
+            return b""
         except OSError as ex:
             if ex.errno == 113:
                 await self.close()
@@ -169,8 +171,6 @@ class BenQConnection(ABC):
                 logger.exception("Unhandeled OSError")
                 await self.close()
                 return b""
-        except TimeoutError:
-            return b""
 
     async def write(self, data: bytes) -> int:
         """
@@ -273,3 +273,5 @@ class BenQTelnetConnection(BenQConnection):
                 raise BenQConnectionError(ex.strerror) from ex
             else:
                 logger.exception("Unhandeled OSError")
+
+        return False
