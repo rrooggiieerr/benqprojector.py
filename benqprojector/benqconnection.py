@@ -67,10 +67,12 @@ class BenQConnection(ABC):
                 self._writer.close()
                 await self._writer.wait_closed()
             except ConnectionError:
-                logger.exception("Connection error")
+                # logger.exception("Connection error")
+                pass
             except OSError as ex:
                 if ex.errno == 113:
-                    logger.exception("Connection error")
+                    # logger.exception("Connection error")
+                    pass
                 else:
                     logger.exception("Unhandeled OSError")
 
