@@ -106,7 +106,7 @@ class BenQConnection(ABC):
         except ConnectionError as ex:
             await self.close()
             raise BenQConnectionError(ex.strerror) from ex
-        except TimeoutError:
+        except asyncio.exceptions.TimeoutError:
             return b""
         except OSError as ex:
             if ex.errno == 113:
@@ -130,7 +130,7 @@ class BenQConnection(ABC):
         except ConnectionError as ex:
             await self.close()
             raise BenQConnectionError(ex.strerror) from ex
-        except TimeoutError:
+        except asyncio.exceptions.TimeoutError:
             return b""
         except OSError as ex:
             if ex.errno == 113:
@@ -159,7 +159,7 @@ class BenQConnection(ABC):
         except ConnectionError as ex:
             await self.close()
             raise BenQConnectionError(ex.strerror) from ex
-        except TimeoutError:
+        except asyncio.exceptions.TimeoutError:
             return b""
         except OSError as ex:
             if ex.errno == 113:
@@ -259,7 +259,7 @@ class BenQTelnetConnection(BenQConnection):
                 )
 
             return True
-        except TimeoutError as ex:
+        except asyncio.exceptions.TimeoutError as ex:
             raise BenQConnectionTimeoutError(str(ex)) from ex
         except socket.gaierror as ex:
             raise BenQConnectionError(ex.strerror) from ex
