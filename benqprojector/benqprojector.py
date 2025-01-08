@@ -362,8 +362,11 @@ class BenQProjector(ABC):
     async def _connect(self) -> bool:
         if not self.connected():
             logger.info("Connecting to %s", self.connection)
-            await self.connection.open()
-            logger.debug("Connected to %s", self.connection)
+            try:
+                if await self.connection.open():
+                    logger.debug("Connected to %s", self.connection)
+            except BenQConnectionError as ex:
+                logger.error("Failed to connect to %s", self.connection)
 
         return self.connected()
 

@@ -29,7 +29,6 @@ def _listener(command: str, data: Any):
 
 async def main(projector: BenQProjector, action: str):
     if not await projector.connect(interval=1):
-        _LOGGER.error("Failed to connect to BenQ projector")
         sys.exit(1)
 
     try:
