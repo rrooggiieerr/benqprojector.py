@@ -640,7 +640,7 @@ class BenQProjector(ABC):
             )
             if not locked:
                 raise BenQTooBusyError(command)
-        except TimeoutError as ex:
+        except asyncio.exceptions.TimeoutError as ex:
             raise BenQTooBusyError(command) from ex
 
         try:
@@ -882,7 +882,7 @@ class BenQProjector(ABC):
             )
             if not locked:
                 raise BenQTooBusyError(command)
-        except TimeoutError as ex:
+        except asyncio.exceptions.TimeoutError as ex:
             raise BenQTooBusyError(command) from ex
 
         raw_response = None

@@ -105,11 +105,11 @@ class BenQConnection(ABC):
             return await asyncio.wait_for(
                 self._reader.read(size), timeout=self._read_timeout
             )
+        except asyncio.exceptions.TimeoutError:
+            return b""
         except ConnectionError as ex:
             await self.close()
             raise BenQConnectionError(ex.strerror) from ex
-        except asyncio.exceptions.TimeoutError:
-            return b""
         except OSError as ex:
             if ex.errno == 113:
                 await self.close()
@@ -129,11 +129,11 @@ class BenQConnection(ABC):
             return await asyncio.wait_for(
                 self._reader.readline(), timeout=self._read_timeout
             )
+        except asyncio.exceptions.TimeoutError:
+            return b""
         except ConnectionError as ex:
             await self.close()
             raise BenQConnectionError(ex.strerror) from ex
-        except asyncio.exceptions.TimeoutError:
-            return b""
         except OSError as ex:
             if ex.errno == 113:
                 await self.close()
@@ -153,6 +153,8 @@ class BenQConnection(ABC):
             return await asyncio.wait_for(
                 self._reader.readuntil(separator), timeout=self._read_timeout
             )
+        except asyncio.exceptions.TimeoutError:
+            return b""
         except asyncio.IncompleteReadError as ex:
             logger.exception("Incomplete read")
             if ex.partial is not None:
@@ -161,8 +163,6 @@ class BenQConnection(ABC):
         except ConnectionError as ex:
             await self.close()
             raise BenQConnectionError(ex.strerror) from ex
-        except asyncio.exceptions.TimeoutError:
-            return b""
         except OSError as ex:
             if ex.errno == 113:
                 await self.close()
