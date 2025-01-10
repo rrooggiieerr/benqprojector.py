@@ -1349,7 +1349,20 @@ class BenQProjector(ABC):
         First it tests if the projector is in a state that powering on is possible.
         """
         # Check the actual power state of the projector.
-        response = await self.send_command("pow")
+        response = None
+        try:
+            response = await self._send_command(BenQCommand("pow"))
+            if response is None:
+                logger.error("Failed to retrieve projector power state.")
+        except BenQBlockedItemError as ex:
+            logger.error(
+                "Unable to retrieve projector power state, is projector already powering down? %s",
+                ex,
+            )
+        except BenQProjectorError as ex:
+            logger.error("Unable to retrieve projector power state: %s", ex)
+            return False
+
         if response == "on":
             # The projector is already on.
             if (
@@ -1358,6 +1371,7 @@ class BenQProjector(ABC):
             ):
                 logger.debug("Projector still powering on")
             else:
+                logger.debug("Projector already on")
                 self.power_status = self.POWERSTATUS_ON
                 self._power_timestamp = None
 
@@ -1376,12 +1390,20 @@ class BenQProjector(ABC):
 
             # Continue powering on the projector.
             logger.info("Turning on projector")
-            response = await self.send_command("pow", "on")
-            if response == "on":
-                self.power_status = self.POWERSTATUS_POWERINGON
-                self._power_timestamp = time.time()
+            try:
+                response = await self._send_command(BenQCommand("pow", "on"))
+                if response == "on":
+                    self.power_status = self.POWERSTATUS_POWERINGON
+                    self._power_timestamp = time.time()
 
-                return True
+                    return True
+            except BenQBlockedItemError as ex:
+                logger.error(
+                    "Failed to turn on projector, is projector already powering on or off? %s",
+                    ex,
+                )
+            except BenQProjectorError as ex:
+                pass
 
             logger.error("Failed to turn on projector, response: %s", response)
 
@@ -1394,7 +1416,20 @@ class BenQProjector(ABC):
         First it tests if the projector is in a state that powering off is possible.
         """
         # Check the actual power state of the projector.
-        response = await self.send_command("pow")
+        response = None
+        try:
+            response = await self._send_command(BenQCommand("pow"))
+            if response is None:
+                logger.error("Failed to retrieve projector power state.")
+        except BenQBlockedItemError as ex:
+            logger.error(
+                "Unable to retrieve projector power state, is projector already powering down? %s",
+                ex,
+            )
+        except BenQProjectorError as ex:
+            logger.error("Unable to retrieve projector power state: %s", ex)
+            return False
+
         if response == "off":
             # The projector is already off.
             if (
@@ -1403,6 +1438,7 @@ class BenQProjector(ABC):
             ):
                 logger.debug("Projector still powering off")
             else:
+                logger.debug("Projector already off")
                 self.power_status = self.POWERSTATUS_OFF
                 self._power_timestamp = None
 
@@ -1421,12 +1457,20 @@ class BenQProjector(ABC):
 
             # Continue powering off the projector.
             logger.info("Turning off projector")
-            response = await self.send_command("pow", "off")
-            if response == "off":
-                self.power_status = self.POWERSTATUS_POWERINGOFF
-                self._power_timestamp = time.time()
+            try:
+                response = await self._send_command(BenQCommand("pow", "off"))
+                if response == "off":
+                    self.power_status = self.POWERSTATUS_POWERINGOFF
+                    self._power_timestamp = time.time()
 
-                return True
+                    return True
+            except BenQBlockedItemError as ex:
+                logger.error(
+                    "Failed to turn off projector, is projector already powering on or off? %s",
+                    ex,
+                )
+            except BenQProjectorError as ex:
+                pass
 
             logger.error("Failed to turn off projector, response: %s", response)
 
