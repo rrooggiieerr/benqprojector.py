@@ -362,11 +362,8 @@ class BenQProjector(ABC):
     async def _connect(self) -> bool:
         if not self.connected():
             logger.info("Connecting to %s", self.connection)
-            try:
-                if await self.connection.open():
-                    logger.debug("Connected to %s", self.connection)
-            except BenQConnectionError as ex:
-                logger.error("Failed to connect to %s", self.connection)
+            if await self.connection.open():
+                logger.debug("Connected to %s", self.connection)
 
         return self.connected()
 
@@ -380,7 +377,11 @@ class BenQProjector(ABC):
         if self._loop is None:
             self._loop = asyncio.get_event_loop()
 
-        if not await self._connect():
+        try:
+            if not await self._connect():
+                return False
+        except BenQConnectionError:
+            logger.error("Problem communicating with %s", self.unique_id)
             return False
 
         if not self._init:
@@ -548,7 +549,9 @@ class BenQProjector(ABC):
                 if not self.connected():
                     await self._connect()
 
-                if self.connected() and not self.busy():
+                if not self.connected():
+                    logger.debug("Not connected")
+                elif not self.busy():
                     if await self.update_power():
                         if previous_data.get("pow") != self.power_status:
                             self._forward_to_listeners("pow", self.power_status)
@@ -601,8 +604,8 @@ class BenQProjector(ABC):
             except asyncio.CancelledError:
                 logger.debug("Read coroutine was canceled")
                 break
-            except (BrokenPipeError, ConnectionResetError, TimeoutError):
-                logger.exception("Error communicating with BenQ projector")
+            except (BrokenPipeError, ConnectionResetError, BenQConnectionError):
+                logger.error("Error communicating with BenQ projector")
                 await self._disconnect()
 
         self._read_task = None
@@ -652,10 +655,8 @@ class BenQProjector(ABC):
         except BenQProjectorError as ex:
             ex.command = command
             raise
-        except BenQConnectionError as ex:
-            logger.exception(
-                "Problem communicating with %s, reason: %s", self.unique_id, ex
-            )
+        except BenQConnectionError:
+            logger.exception("Problem communicating with %s", self.unique_id)
             return None
         finally:
             self._connection_lock.release()
@@ -865,6 +866,10 @@ class BenQProjector(ABC):
             response = await self._send_command(
                 BenQCommand(command, action), check_supported
             )
+        except BenQConnectionError:
+            self.connection.close()
+        except BenQResponseTimeoutError:
+            self.connection.close()
         except BenQProjectorError:
             pass
 
@@ -893,13 +898,14 @@ class BenQProjector(ABC):
             # Read and log the response
             raw_response = await self._read_raw_response(command)
             logger.debug(raw_response)
+        except BenQResponseTimeoutError:
+            self.connection.close()
+            ex.command = command
         except BenQProjectorError as ex:
             ex.command = command
             raise
-        except BenQConnectionError as ex:
-            logger.exception(
-                "Problem communicating with %s, reason: %s", self.unique_id, ex
-            )
+        except BenQConnectionError:
+            logger.exception("Problem communicating with %s", self.unique_id)
             return None
         finally:
             self._connection_lock.release()
