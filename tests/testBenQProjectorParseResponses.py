@@ -13,11 +13,11 @@ import logging
 import unittest
 
 from benqprojector.benqprojector import (
+    BenQBlockedItemError,
     BenQCommand,
+    BenQIllegalFormatError,
     BenQProjector,
-    BlockedItemError,
-    IllegalFormatError,
-    UnsupportedItemError,
+    BenQUnsupportedItemError,
 )
 
 logger = logging.getLogger(__name__)
@@ -74,7 +74,7 @@ class Test(unittest.TestCase):
 
     def test_parse_response_illegal_format(self):
         self.assertRaises(
-            IllegalFormatError,
+            BenQIllegalFormatError,
             self._projector._parse_response,
             BenQCommand("whatever"),
             "*Illegal format#",
@@ -82,7 +82,7 @@ class Test(unittest.TestCase):
 
     def test_parse_response_unsupported_item(self):
         self.assertRaises(
-            UnsupportedItemError,
+            BenQUnsupportedItemError,
             self._projector._parse_response,
             BenQCommand("whatever"),
             "*Unsupported item#",
@@ -90,7 +90,7 @@ class Test(unittest.TestCase):
 
     def test_parse_response_block_item(self):
         self.assertRaises(
-            BlockedItemError,
+            BenQBlockedItemError,
             self._projector._parse_response,
             BenQCommand("whatever"),
             "*Block item#",

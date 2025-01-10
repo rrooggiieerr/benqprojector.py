@@ -115,7 +115,7 @@ class BenQProjectorError(Exception):
         self.command = command
 
 
-class IllegalFormatError(BenQProjectorError):
+class BenQIllegalFormatError(BenQProjectorError):
     """
     Illegal command format error.
 
@@ -126,7 +126,7 @@ class IllegalFormatError(BenQProjectorError):
         return f"Illegal format for command '{self.command.command}' and action '{self.command.action}'"
 
 
-class EmptyResponseError(BenQProjectorError):
+class BenQEmptyResponseError(BenQProjectorError):
     """
     Empty response error.
 
@@ -137,7 +137,7 @@ class EmptyResponseError(BenQProjectorError):
         return f"Empty response for command '{self.command.command}' and action '{self.command.action}'"
 
 
-class UnsupportedItemError(BenQProjectorError):
+class BenQUnsupportedItemError(BenQProjectorError):
     """
     Unsupported item error.
 
@@ -149,7 +149,7 @@ class UnsupportedItemError(BenQProjectorError):
         return f"Unsupported item for command '{self.command.command}' and action '{self.command.action}'"
 
 
-class BlockedItemError(BenQProjectorError):
+class BenQBlockedItemError(BenQProjectorError):
     """
     Blocked item error.
 
@@ -161,7 +161,7 @@ class BlockedItemError(BenQProjectorError):
         return f"Block item for command '{self.command.command}' and action '{self.command.action}'"
 
 
-class InvallidResponseError(BenQProjectorError):
+class BenQInvallidResponseError(BenQProjectorError):
     """
     Invalid response error.
 
@@ -176,7 +176,7 @@ class InvallidResponseError(BenQProjectorError):
         return f"Invalid response for command '{self.command.command}' and action '{self.command.action}'. response: {self.response}"
 
 
-class ResponseTimeoutError(BenQProjectorError, TimeoutError):
+class BenQResponseTimeoutError(BenQProjectorError, asyncio.exceptions.TimeoutError):
     """
     Response timeout error.
 
@@ -187,7 +187,7 @@ class ResponseTimeoutError(BenQProjectorError, TimeoutError):
         return f"Response timeout for command '{self.command.command}' and action '{self.command.action}'"
 
 
-class PromptTimeoutError(ResponseTimeoutError):
+class BenQPromptTimeoutError(BenQResponseTimeoutError):
     """
     Prompt timeout error.
 
@@ -198,7 +198,7 @@ class PromptTimeoutError(ResponseTimeoutError):
         return f"Prompt timeout for command '{self.command.command}' and action '{self.command.action}'"
 
 
-class TooBusyError(BenQProjectorError):
+class BenQTooBusyError(BenQProjectorError):
     """
     Too busy error.
 
@@ -402,17 +402,17 @@ class BenQProjector(ABC):
             power = await self._send_command(BenQCommand("pow"))
             if power is None:
                 logger.error("Failed to retrieve projector power state.")
-        except PromptTimeoutError:
+        except BenQPromptTimeoutError:
             logger.error(
                 "Failed to get projector command prompt, is your projector properly connected?"
             )
             return False
-        except BlockedItemError as ex:
+        except BenQBlockedItemError as ex:
             logger.error(
                 "Unable to retrieve projector power state, is projector powering down? %s",
                 ex,
             )
-        except EmptyResponseError as ex:
+        except BenQEmptyResponseError as ex:
             logger.warning(ex)
         except BenQProjectorError as ex:
             logger.error("Unable to retrieve projector power state: %s", ex)
@@ -424,11 +424,11 @@ class BenQProjector(ABC):
                 BenQCommand("modelname"), lowercase_response=False
             )
             assert model is not None, "Failed to retrieve projector model"
-        except IllegalFormatError as ex:
+        except BenQIllegalFormatError as ex:
             # W1000 does not seem to return projector model, but gives an illegal
             # format error. Maybe there are other models with the same problem?
             logger.error("Unable to retrieve projector model")
-        except BlockedItemError as ex:
+        except BenQBlockedItemError as ex:
             # W1070/W1250 does not seem to return projector model when off, but gives
             # an blocked item error. Maybe there are other models with the same problem?
             if power == "off":
@@ -639,9 +639,9 @@ class BenQProjector(ABC):
                 self._connection_lock.acquire(), timeout=_CONNECTION_LOCK_TIMEOUT
             )
             if not locked:
-                raise TooBusyError(command)
+                raise BenQTooBusyError(command)
         except TimeoutError as ex:
-            raise TooBusyError(command) from ex
+            raise BenQTooBusyError(command) from ex
 
         try:
             await self._send_raw_command(command.raw_command)
@@ -704,7 +704,7 @@ class BenQProjector(ABC):
                 logger.warning("Unexpected response: %s", response)
 
             if (datetime.now() - start_time).total_seconds() > 1:
-                raise PromptTimeoutError()
+                raise BenQPromptTimeoutError()
 
             await asyncio.sleep(0.05)
 
@@ -729,7 +729,7 @@ class BenQProjector(ABC):
             if (datetime.now() - last_response).total_seconds() > _RESPONSE_TIMEOUT:
                 logger.warning("Timeout while waiting for response")
                 self._has_to_wait_for_prompt = True
-                raise ResponseTimeoutError()
+                raise BenQResponseTimeoutError()
 
             logger.debug("Waiting for response")
             await asyncio.sleep(0.05)
@@ -751,7 +751,7 @@ class BenQProjector(ABC):
                     # using the previous response.
                     response = previous_response
                 else:
-                    raise EmptyResponseError(command)
+                    raise BenQEmptyResponseError(command)
             elif (response := await self._read_response()) == "":
                 logger.debug("Empty line")
                 # Empty line
@@ -818,24 +818,24 @@ class BenQProjector(ABC):
         if response in ["*illegal format#", "illegal format"]:
             if not self._interactive:
                 logger.error("Command %s illegal format", command.raw_command)
-            raise IllegalFormatError(command)
+            raise BenQIllegalFormatError(command)
 
         if response in ["*unsupported item#", "unsupported item"]:
             if not self._interactive:
                 logger.warning("Command %s unsupported item", command.raw_command)
-            raise UnsupportedItemError(command)
+            raise BenQUnsupportedItemError(command)
 
         if response in ["*block item#", "block item"]:
             if not self._interactive:
                 logger.warning("Command %s blocked item", command.raw_command)
-            raise BlockedItemError(command)
+            raise BenQBlockedItemError(command)
 
         if command.action is None:
             matches = RESPONSE_RE_STATE_ONLY.match(response)
         else:
             matches = self._response_re.match(response)
             if matches and matches.group(1).lower() != command.command:
-                raise InvallidResponseError(command, response)
+                raise BenQInvallidResponseError(command, response)
             if not matches and command.command == "modelname":
                 # Some projectors only return the model name withouth the modelname command
                 # #w700* instad of #modelname=w700*
@@ -843,7 +843,7 @@ class BenQProjector(ABC):
 
         if not matches:
             logger.error("Unexpected response format, response: %s", response)
-            raise InvallidResponseError(command, response)
+            raise BenQInvallidResponseError(command, response)
         response: str = matches.group(2)
 
         # Strip any spaces from the response
@@ -881,9 +881,9 @@ class BenQProjector(ABC):
                 self._connection_lock.acquire(), timeout=_CONNECTION_LOCK_TIMEOUT
             )
             if not locked:
-                raise TooBusyError(command)
+                raise BenQTooBusyError(command)
         except TimeoutError as ex:
-            raise TooBusyError(command) from ex
+            raise BenQTooBusyError(command) from ex
 
         raw_response = None
 
@@ -946,10 +946,10 @@ class BenQProjector(ABC):
                                 supported_commands.append(command)
                             else:
                                 command = None
-                        except BlockedItemError:
+                        except BenQBlockedItemError:
                             supported_commands.append(command)
                             command = f"{command}?"
-                        except ResponseTimeoutError:
+                        except BenQResponseTimeoutError:
                             if retries < 2:
                                 retries += 1
                                 continue
@@ -1008,10 +1008,10 @@ class BenQProjector(ABC):
                         supported_modes.append(mode)
                     else:
                         mode = None
-                except BlockedItemError:
+                except BenQBlockedItemError:
                     supported_modes.append(mode)
                     mode = f"{mode}?"
-                except ResponseTimeoutError:
+                except BenQResponseTimeoutError:
                     supported_modes.append(mode)
                     mode = f"{mode}¿"
 
@@ -1491,7 +1491,7 @@ class BenQProjector(ABC):
                 if await self._send_command(BenQCommand("vol", level)) == str(level):
                     logger.debug("Successfully set volume withouth increments")
                     return True
-            except UnsupportedItemError:
+            except BenQUnsupportedItemError:
                 logger.debug("Need increments to set volume")
                 self._use_volume_increments = True
 

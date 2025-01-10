@@ -11,12 +11,12 @@ Created on 5 Dec 2022
 import unittest
 
 from benqprojector.benqprojector import (
+    BenQBlockedItemError,
+    BenQEmptyResponseError,
+    BenQIllegalFormatError,
+    BenQInvallidResponseError,
     BenQProjectorError,
-    BlockedItemError,
-    EmptyResponseError,
-    IllegalFormatError,
-    InvallidResponseError,
-    UnsupportedItemError,
+    BenQUnsupportedItemError,
 )
 
 
@@ -24,20 +24,20 @@ class Test(unittest.TestCase):
     def testBenQProjectorError(self):
         BenQProjectorError()
 
-    def testIllegalFormatError(self):
-        IllegalFormatError()
+    def testBenQIllegalFormatError(self):
+        BenQIllegalFormatError()
 
-    def testEmptyResponseError(self):
-        EmptyResponseError()
+    def testBenQEmptyResponseError(self):
+        BenQEmptyResponseError()
 
-    def testUnsupportedItemError(self):
-        UnsupportedItemError()
+    def testBenQUnsupportedItemError(self):
+        BenQUnsupportedItemError()
 
-    def testBlockedItemError(self):
-        BlockedItemError()
+    def testBenQBlockedItemError(self):
+        BenQBlockedItemError()
 
-    def testInvallidResponseError(self):
-        InvallidResponseError()
+    def testBenQInvallidResponseError(self):
+        BenQInvallidResponseError()
 
 
 if __name__ == "__main__":
