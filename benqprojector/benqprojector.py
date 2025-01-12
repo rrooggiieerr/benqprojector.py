@@ -685,8 +685,10 @@ class BenQProjector(ABC):
 
         if not self._has_to_wait_for_prompt:
             await self.connection.write(b"\r")
-            await self.connection.read(1)
-            return True
+            if await self.connection.read(1) == b"\r":
+                return True
+            self._has_to_wait_for_prompt = True
+            return False
 
         start_time = datetime.now()
         while True:
