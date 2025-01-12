@@ -803,7 +803,7 @@ class BenQProjector(ABC):
 
             return response
 
-    async def _send_raw_command(self, command: str) -> str:
+    async def _send_raw_command(self, command: str):
         """
         Send a raw command to the BenQ projector.
         """
