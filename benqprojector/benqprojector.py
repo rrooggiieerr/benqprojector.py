@@ -869,9 +869,9 @@ class BenQProjector(ABC):
                 BenQCommand(command, action), check_supported
             )
         except BenQConnectionError:
-            self.connection.close()
+            await self.connection.close()
         except BenQResponseTimeoutError:
-            self.connection.close()
+            await self.connection.close()
         except BenQProjectorError:
             pass
 
@@ -901,7 +901,7 @@ class BenQProjector(ABC):
             raw_response = await self._read_raw_response(command)
             logger.debug(raw_response)
         except BenQResponseTimeoutError:
-            self.connection.close()
+            await self.connection.close()
             ex.command = command
         except BenQProjectorError as ex:
             ex.command = command
