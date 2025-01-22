@@ -446,7 +446,11 @@ class BenQProjector(ABC):
                     ex,
                 )
 
-        if model is not None and model != self.model:
+        if (
+            model is not None
+            and model != self.model
+            and (power == "on" or self.model is None)
+        ):
             self.model = model
             self.projector_config = None
 
