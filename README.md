@@ -11,30 +11,27 @@
 
 ## Introduction
 
-Python library to control BenQ projectors over the serial interface or serial to network bridges
-like [esp-link](https://github.com/jeelabs/esp-link).
-
-BenQ projectors and flat panels with a serial port can support one of three protocols. This plugin
-supports projectors which are of the L, P, T, W and X series but probably also others.
+Python library to control BenQ projectors over the serial or network interface including serial to
+bridges like [esp-link](https://github.com/jeelabs/esp-link).
 
 ## Features
 
-* Connects to a BenQ projector over serial and serial to network bridge
+* Connects to a BenQ projector over serial or network interface
 * Sending commands to projectors
 * Reading the projector status
 * Detect projector capabilities
 * Uses asynchronous IO
 
-## Hardware
-
-I'm using a generic serial to USB converter to connect to my projector. The projector has a male
-DB9 connector, thus you need a female conector on your USB converter.
-
 ## Protocol
+
+BenQ projectors and flat panels with a serial port can support one of three protocols. This plugin
+supports projectors which are of the L, P, T, W and X series but probably also others.
 
 This Python library works if your projector supports the following command structure: 
 
-`<CR>*<key>=<value>#<CR>`
+```
+<CR>*<key>=<value>#<CR>
+```
 
 Where `<CR>` is a Carriage Return
 
@@ -43,29 +40,34 @@ Power on   : `<CR>*pow=on#<CR>`
 Power off  : `<CR>*pow=off#<CR>`  
 Change source to HDMI: `<CR>*sour=hdmi#<CR>`  
 
+### PJLink
+
+This library does **not** implement the PJLink protocol, but a proparitary BenQ protocol instead.
+The PJLink protocol is covered by other libraries.
+
+## Hardware
+
 ### Serial port
+
+I'm using a generic serial to USB converter to connect to my projector. The projector has a male
+DB9 connector, thus you need a female conector on your USB converter.
 
 You can lookup and change the baud rate in the menu of your BenQ projector.
 
 ### Network connected projectors
 
-The commands as described above should also work over a network connection, however I don't own
-such projector and have implemented the network functionality using a serial to network bridge. The
-network support for native networked BenQ projectors is thus experimental. Let me know if your
-network connected BenQ projector works.
+The commands as described above also work over a network connection. Although I don't own such
+projector I have implemented the network functionality using a serial to WiFi bridge. The network
+support for integrated networked BenQ projectors is thus experimental. Let me know if your network
+connected BenQ projector works.
 
-Example of a serial to network bridge using a serial to TTL converter and a Wemos C3 Mini:
+Example of a serial to WiFi bridge using a serial to TTL converter and a Wemos C3 Mini:
 
-<img src="https://raw.githubusercontent.com/rrooggiieerr/benqprojector.py/main/serial%20to%20network%20bridge.png">
+<img src="https://raw.githubusercontent.com/rrooggiieerr/benqprojector.py/main/serial%20to%20network%20bridge.png" style="width: 25%;"/>
 
 It has to be said that a direct serial connection to the projector is much more responsive than
-using a network connection, at least when using a serial to network bridge. Maybe this is different
-on a native networked BenQ projector or using ethernet instead of WiFi.
-
-### PJLink
-
-This library does **not** implement the PJLink protocol, but a proparitary BenQ protocol instead.
-The PJLink protocol is covered by other libraries.
+using a serial to WiFi bridge. Maybe this is different on an integrated networked BenQ projector or
+using ethernet instead of WiFi.
 
 ## Supported projectors
 
