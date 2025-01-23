@@ -31,7 +31,7 @@ logger = logging.getLogger(__name__)
 BAUD_RATES = [2400, 4800, 9600, 14400, 19200, 38400, 57600, 115200]
 
 RESPONSE_RE_STRICT = re.compile(r"^\*([^=]*)=([^#]*)#$")
-RESPONSE_RE_LOSE = re.compile(r"^\*?([^=]*)=([^#]*)#?$")
+RESPONSE_RE_LOOSE = re.compile(r"^\*?([^=]*)=([^#]*)#?$")
 RESPONSE_RE_STATE_ONLY = re.compile(r"^\*?()([^#]*?)#?$")
 
 WHITESPACE = string.whitespace + "\x00"
@@ -833,8 +833,11 @@ class BenQProjector(ABC):
         else:
             matches = RESPONSE_RE_STRICT.match(response)
             if not matches:
-                logger.warning("Response does not match strict response validation: %s", response)
-                matches = RESPONSE_RE_LOSE.match(response)
+                logger.warning(
+                    "Response does not match strict response validation: %s", response
+                )
+                # Continue using loose response validation
+                matches = RESPONSE_RE_LOOSE.match(response)
 
             if matches and matches.group(1).lower() != command.command:
                 raise BenQInvallidResponseError(command, response)
