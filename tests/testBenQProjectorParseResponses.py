@@ -57,6 +57,21 @@ class Test(unittest.TestCase):
         )
         self.assertEqual("W1110", response)
 
+    def test_parse_response_w1110_directpower_projectoroff(self):
+        # The W1110 directpower command does not send the leading #  when the projector is turned
+        # off
+        response = self._projector._parse_response(
+            BenQCommand("directpower"), "DIRECTPOWER=OFF#", False
+        )
+        self.assertEqual("OFF", response)
+
+    def test_parse_response_w1110_directpower_projectoron(self):
+        # The W1110 directpower command sends the leading *  when the projector is turned on
+        response = self._projector._parse_response(
+            BenQCommand("directpower"), "*DIRECTPOWER=OFF#", False
+        )
+        self.assertEqual("OFF", response)
+
     def test_parse_response_w700_modelname(self):
         # The W700 modelname command returns only the model name and does not start with
         # *MODELNAME= and does not end with #
@@ -66,11 +81,26 @@ class Test(unittest.TestCase):
         self.assertEqual("W700", response)
 
     def test_parse_response_w6000l_modelname(self):
-        # The W6000L modelname command returns only the model name
+        # The W6000L modelname command returns only the model name and does not start with
+        # *MODELNAME= and does not end with #
         response = self._projector._parse_response(
             BenQCommand("modelname"), "W6000L", False
         )
         self.assertEqual("W6000L", response)
+
+    def test_parse_response_w2000_modelname_projectoroff(self):
+        # The W2000 modelname command returns W1110 when the projector is turned off
+        response = self._projector._parse_response(
+            BenQCommand("modelname"), "*MODELNAME=W1110#", False
+        )
+        self.assertEqual("W1110", response)
+
+    def test_parse_response_w2000_modelname_projectoron(self):
+        # The W2000 modelname command returns W2000 when the projector is turned on
+        response = self._projector._parse_response(
+            BenQCommand("modelname"), "*MODELNAME=W2000#", False
+        )
+        self.assertEqual("W2000", response)
 
     def test_parse_response_illegal_format(self):
         self.assertRaises(
@@ -86,6 +116,15 @@ class Test(unittest.TestCase):
             self._projector._parse_response,
             BenQCommand("whatever"),
             "*Unsupported item#",
+        )
+
+    def test_parse_response_W1100_unsupported_item(self):
+        # The W1100  returns the error withouth leading * and trailing #
+        self.assertRaises(
+            BenQUnsupportedItemError,
+            self._projector._parse_response,
+            BenQCommand("whatever"),
+            "Unsupported item",
         )
 
     def test_parse_response_block_item(self):
