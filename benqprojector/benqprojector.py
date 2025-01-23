@@ -18,6 +18,19 @@ from abc import ABC
 from datetime import datetime
 from typing import Any
 
+from .benqclasses import (
+    BenQBlockedItemError,
+    BenQCommand,
+    BenQEmptyResponseError,
+    BenQIllegalFormatError,
+    BenQInvallidResponseError,
+    BenQProjectorError,
+    BenQPromptTimeoutError,
+    BenQRawCommand,
+    BenQResponseTimeoutError,
+    BenQTooBusyError,
+    BenQUnsupportedItemError,
+)
 from .benqconnection import (
     DEFAULT_PORT,
     BenQConnection,
