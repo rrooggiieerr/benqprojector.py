@@ -30,8 +30,8 @@ logger = logging.getLogger(__name__)
 
 BAUD_RATES = [2400, 4800, 9600, 14400, 19200, 38400, 57600, 115200]
 
-RESPONSE_RE_STRICT = r"^\*([^=]*)=([^#]*)#$"
-RESPONSE_RE_LOSE = r"^\*?([^=]*)=([^#]*)#?$"
+RESPONSE_RE_STRICT = re.compile(r"^\*([^=]*)=([^#]*)#$")
+RESPONSE_RE_LOSE = re.compile(r"^\*?([^=]*)=([^#]*)#?$")
 RESPONSE_RE_STATE_ONLY = re.compile(r"^\*?()([^#]*?)#?$")
 
 WHITESPACE = string.whitespace + "\x00"
@@ -283,9 +283,6 @@ class BenQProjector(ABC):
     quick_auto_search = None
     sharpness = None
 
-    # Compile regular expression to match the command response.
-    _response_re = None
-
     # Some projectors do not echo the given command, the code tries to detect if this is the case
     _expect_command_echo = True
 
@@ -293,7 +290,6 @@ class BenQProjector(ABC):
         self,
         connection: BenQConnection,
         model_hint: str = None,
-        strict_validation: bool = False,
     ):
         """
         Initialises the BenQProjector object.
@@ -302,11 +298,6 @@ class BenQProjector(ABC):
 
         self.connection = connection
         self.model = model_hint
-
-        if strict_validation:
-            self._response_re = re.compile(RESPONSE_RE_STRICT)
-        else:
-            self._response_re = re.compile(RESPONSE_RE_LOSE)
 
         self._interactive = False
         if sys.stdin and sys.stdin.isatty() and logging.root.level == logging.INFO:
@@ -840,12 +831,16 @@ class BenQProjector(ABC):
         if command.action is None:
             matches = RESPONSE_RE_STATE_ONLY.match(response)
         else:
-            matches = self._response_re.match(response)
+            matches = RESPONSE_RE_STRICT.match(response)
+            if not matches:
+                logger.warning("Response does not match strict response validation: %s", response)
+                matches = RESPONSE_RE_LOSE.match(response)
+
             if matches and matches.group(1).lower() != command.command:
                 raise BenQInvallidResponseError(command, response)
             if not matches and command.command == "modelname":
                 # Some projectors only return the model name withouth the modelname command
-                # #w700* instad of #modelname=w700*
+                # #w700 instad of #modelname=w700*
                 matches = RESPONSE_RE_STATE_ONLY.match(response)
 
         if not matches:
@@ -1589,7 +1584,6 @@ class BenQProjectorSerial(BenQProjector):
         serial_port: str,
         baud_rate: int,
         model_hint: str = None,
-        strict_validation: bool = False,
     ) -> None:
         """
         Initializes the BenQProjectorSerial object.
@@ -1601,7 +1595,7 @@ class BenQProjectorSerial(BenQProjector):
 
         connection = BenQSerialConnection(serial_port, baud_rate)
 
-        super().__init__(connection, model_hint, strict_validation)
+        super().__init__(connection, model_hint)
 
 
 class BenQProjectorTelnet(BenQProjector):
@@ -1614,7 +1608,6 @@ class BenQProjectorTelnet(BenQProjector):
         host: str,
         port: int = DEFAULT_PORT,
         model_hint: str = None,
-        strict_validation: bool = False,
         has_prompt: bool | None = None,
     ) -> None:
         """
@@ -1628,4 +1621,4 @@ class BenQProjectorTelnet(BenQProjector):
         connection = BenQTelnetConnection(host, port)
         self.has_prompt = has_prompt
 
-        super().__init__(connection, model_hint, strict_validation)
+        super().__init__(connection, model_hint)
