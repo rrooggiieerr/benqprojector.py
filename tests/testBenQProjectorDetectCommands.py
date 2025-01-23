@@ -12,6 +12,7 @@ import logging
 import unittest
 
 from benqprojector import BenQProjectorSerial
+from benqprojector.benqexamine import BenQProjectorExamine
 
 # from benqprojector import BenQProjectorTelnet
 
@@ -23,10 +24,12 @@ BAUD_RATE = 115200
 
 class Test(unittest.IsolatedAsyncioTestCase):
     _projector = None
+    _examine = None
 
     async def asyncSetUp(self):
         self._projector = BenQProjectorSerial(SERIAL_PORT, BAUD_RATE)
         # self._projector = BenQProjectorTelnet("rs232-bridge.local", 32)
+        self._examine = BenQProjectorExamine(self._projector)
         await self._projector.connect()
         await self._projector.update()
 
@@ -34,5 +37,5 @@ class Test(unittest.IsolatedAsyncioTestCase):
         await self._projector.disconnect()
 
     async def test_detect_commands(self):
-        response = await self._projector.detect_commands()
+        response = await self._examine.detect_commands()
         self.assertIsNotNone(response)

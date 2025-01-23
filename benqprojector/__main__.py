@@ -20,6 +20,8 @@ from benqprojector import (
     BenQProjectorTelnet,
 )
 
+from .benqexamine import BenQProjectorExamine
+
 _LOGGER = logging.getLogger(__name__)
 
 
@@ -89,7 +91,8 @@ async def main(projector: BenQProjector, action: str):
                 _LOGGER.error("Projector needs to be on to examine it's features.")
                 sys.exit(1)
 
-            config = await projector.detect_projector_features()
+            examine = BenQProjectorExamine(projector)
+            config = await examine.detect_projector_features()
 
             _LOGGER.info("Projector configuration JSON:")
             _LOGGER.info(json.dumps(config, indent="\t"))
