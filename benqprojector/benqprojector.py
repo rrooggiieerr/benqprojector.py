@@ -72,7 +72,8 @@ class BenQProjector(ABC):
     """
 
     connection: BenQConnection | None = None
-    # Native networked projectors don't seem to have a command prompt, the code tries to detect if this is the case
+    # Projectors with integrated network don't seem to have a command prompt, the code tries to
+    # detect if this is the case
     has_prompt = None
     _separator = b"\n"
 
