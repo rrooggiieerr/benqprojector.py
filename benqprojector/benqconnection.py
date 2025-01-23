@@ -69,7 +69,6 @@ class BenQConnection(ABC):
             self._writer.close()
             await self._writer.wait_closed()
         except (ConnectionError, TimeoutError):
-            # logger.exception("Connection error")
             pass
         except OSError as ex:
             if ex.errno in [64, 113]:
