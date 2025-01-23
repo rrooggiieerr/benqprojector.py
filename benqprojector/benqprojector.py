@@ -809,21 +809,20 @@ class BenQProjector(ABC):
         await self.connection.write(f"{command}\r".encode("ascii"))
 
     def _parse_response(self, command: BenQCommand, response, lowercase: bool = True):
-        if lowercase:
-            # Lowercase the response
-            response = response.lower()
+        # Lowercase the response
+        lowercase_response = response.lower()
 
-        if response in ["*illegal format#", "illegal format"]:
+        if lowercase_response in ["*illegal format#", "illegal format"]:
             if not self._interactive:
                 logger.error("Command %s illegal format", command.raw_command)
             raise BenQIllegalFormatError(command)
 
-        if response in ["*unsupported item#", "unsupported item"]:
+        if lowercase_response in ["*unsupported item#", "unsupported item"]:
             if not self._interactive:
                 logger.warning("Command %s unsupported item", command.raw_command)
             raise BenQUnsupportedItemError(command)
 
-        if response in ["*block item#", "block item"]:
+        if lowercase_response in ["*block item#", "block item"]:
             if not self._interactive:
                 logger.warning("Command %s blocked item", command.raw_command)
             raise BenQBlockedItemError(command)
@@ -853,6 +852,9 @@ class BenQProjector(ABC):
 
         # Strip any spaces from the response
         response = response.strip(WHITESPACE)
+
+        if lowercase:
+            response = response.lower()
 
         logger.debug("Processed response: %s", response)
 
