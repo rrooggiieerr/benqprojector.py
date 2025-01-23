@@ -18,9 +18,9 @@ Some models don't follow the `*<key>=<value>#` response format for all commands 
 
 ## Model name
 
-Some projectors do not support the modelname command, the **W1000** for instance returns `*Illegal Format#` instead.
+Some projectors do not support the modelname command, the **W1000** for instance returns `*Illegal format#` instead.
 
-Not all projector models return the modelname when the projector is turned off. The **W1070/W1250** returns `*Block Item#`.
+Not all projector models return the modelname when the projector is turned off. The **W1070/W1250** returns `*Block item#`.
 
 The **W2000** returns a different modelname when the projector is turned off then when the projector is turned on. I returns `W1110` when turned off and `W2000` when turned on.
 
