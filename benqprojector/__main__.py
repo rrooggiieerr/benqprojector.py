@@ -134,6 +134,7 @@ if __name__ == "__main__":
     else:
         logging.basicConfig(format="%(message)s", level=logging.INFO)
 
+    projector = None
     if "serial_port" in args:
         projector = BenQProjectorSerial(args.serial_port, args.baud)
     elif "host" in args:
