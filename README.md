@@ -152,7 +152,7 @@ projector capabilities.
 
 ### Troubleshooting
 
-You can add the `--debug` flag to any CLI command to get a more details on what's going on. Like so:
+You can add the `--debug` flag to any CLI command to get more details on what's going on. Like so:
 
 `python3 -m benqprojector serial <serial port> <baud> status --debug`
 
