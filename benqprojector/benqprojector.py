@@ -195,7 +195,7 @@ class BenQProjector(ABC):
         if not self.projector_config and self.model:
             try:
                 self.projector_config = await self._loop.run_in_executor(
-                    None, self._read_config, self.model
+                    None, self._read_config, self.model.lower()
                 )
             except FileNotFoundError:
                 pass
