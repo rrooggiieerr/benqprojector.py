@@ -174,7 +174,8 @@ class BenQProjector(ABC):
 
     def _read_config(self, model: str):
         model_filename = (
-            "".join(c if c.isalnum() or c in "._-" else "_" for c in model.lower()) + ".json"
+            "".join(c if c.isalnum() or c in "._-" else "_" for c in model.lower())
+            + ".json"
         )
         with importlib.resources.open_text(
             "benqprojector.configs", model_filename
