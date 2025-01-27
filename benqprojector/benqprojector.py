@@ -300,6 +300,12 @@ class BenQProjector(ABC):
             and model != self.model
             and (power == "on" or self.model is None)
         ):
+            if self.model is not None:
+                logger.warning(
+                    "Projector model unexpectedly changed from %s to %s",
+                    self.model,
+                    model,
+                )
             self.model = model
             self.projector_config = None
 
