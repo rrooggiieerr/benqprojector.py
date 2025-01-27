@@ -174,7 +174,7 @@ class BenQProjector(ABC):
 
     def _read_config(self, model: str):
         model_filename = (
-            "".join(c if c.isalnum() or c in "._-" else "_" for c in model) + ".json"
+            "".join(c if c.isalnum() or c in "._-" else "_" for c in model.lower()) + ".json"
         )
         with importlib.resources.open_text(
             "benqprojector.configs", model_filename
@@ -195,7 +195,7 @@ class BenQProjector(ABC):
         if not self.projector_config and self.model:
             try:
                 self.projector_config = await self._loop.run_in_executor(
-                    None, self._read_config, self.model.lower()
+                    None, self._read_config, self.model
                 )
             except FileNotFoundError:
                 pass
