@@ -24,7 +24,11 @@ Not all projector models return the modelname when the projector is turned off. 
 
 The **W2000** returns a different modelname when the projector is turned off then when the projector is turned on. I returns `W1110` when turned off and `W2000` when turned on.
 
-Some projectors only return the model name withouth the modelname command prefixed. **W700** returns `#W700` instead of the expected `#MODELNAME=W700*`.
+Some projectors only return the model name withouth the modelname command prefixed. **W700** returns `W700` instead of the expected `*MODELNAME=W700#`.
+
+## Different response when on vs off
+
+The `modelname` command on the **W700** does not contain a newline between the command echo and the actual response when the projector is off. The response is `>*modelname=?#w700`
 
 ## Miscellaneous 
 

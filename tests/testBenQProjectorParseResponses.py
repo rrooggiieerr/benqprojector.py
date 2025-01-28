@@ -58,7 +58,7 @@ class Test(unittest.TestCase):
         self.assertEqual("W1110", response)
 
     def test_parse_response_w1110_directpower_projectoroff(self):
-        # The W1110 directpower command does not send the leading #  when the projector is turned
+        # The W1110 directpower command does not send the leading # when the projector is turned
         # off
         response = self._projector._parse_response(
             BenQCommand("directpower"), "DIRECTPOWER=OFF#", False
@@ -72,9 +72,17 @@ class Test(unittest.TestCase):
         )
         self.assertEqual("OFF", response)
 
-    def test_parse_response_w700_modelname(self):
+    def test_parse_response_w700_modelname_projectoroff(self):
+        # The W700 modelname command returns the command echo and model name withouth *MODELNAME=
+        # and # on one line when the projector is turned off
+        response = self._projector._parse_response(
+            BenQCommand("modelname"), ">*modelname=?#W700", False
+        )
+        self.assertEqual("W700", response)
+
+    def test_parse_response_w700_modelname_projectoron(self):
         # The W700 modelname command returns only the model name and does not start with
-        # *MODELNAME= and does not end with #
+        # *MODELNAME= and does not end with # when the projector is turned on
         response = self._projector._parse_response(
             BenQCommand("modelname"), "W700", False
         )

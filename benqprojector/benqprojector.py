@@ -707,7 +707,7 @@ class BenQProjector(ABC):
                 raise BenQInvallidResponseError(command, response)
             if not matches and command.command == "modelname":
                 # Some projectors only return the model name withouth the modelname command
-                # #w700 instad of #modelname=w700*
+                # W700 instad of *modelname=W700#
                 matches = RESPONSE_RE_STATE_ONLY.match(response)
 
         if not matches:
