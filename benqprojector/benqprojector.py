@@ -53,6 +53,14 @@ END_OF_RESPONSE = b"#\n\r\x00"
 _RESPONSE_TIMEOUT = 5.0
 _CONNECTION_LOCK_TIMEOUT = 1
 
+CMD_MODELNAME = "modelname"
+CMD_POWER = "pow"
+CMD_MUTE = "mute"
+CMD_VOLUME = "vol"
+CMD_SOURCE = "sour"
+
+ACTION_ON = "on"
+ACTION_OFF = "off"
 
 background_tasks = set()
 
@@ -177,6 +185,8 @@ class BenQProjector(ABC):
             "".join(c if c.isalnum() or c in "._-" else "_" for c in model.lower())
             + ".json"
         )
+        logger.info("Using model file %s", model_filename)
+
         with importlib.resources.open_text(
             "benqprojector.configs", model_filename
         ) as file:
@@ -250,7 +260,7 @@ class BenQProjector(ABC):
 
         power = None
         try:
-            power = await self._send_command(BenQCommand("pow"))
+            power = await self._send_command(BenQCommand(CMD_POWER))
             if power is None:
                 logger.error("Failed to retrieve projector power state.")
         except BenQPromptTimeoutError:
@@ -272,7 +282,7 @@ class BenQProjector(ABC):
         model = None
         try:
             model = await self._send_command(
-                BenQCommand("modelname"), lowercase_response=False
+                BenQCommand(CMD_MODELNAME), lowercase_response=False
             )
             assert model is not None, "Failed to retrieve projector model"
         except BenQIllegalFormatError as ex:
@@ -413,26 +423,33 @@ class BenQProjector(ABC):
                     logger.debug("Not connected")
                 elif not self.busy():
                     if await self.update_power():
-                        if previous_data.get("pow") != self.power_status:
-                            self._forward_to_listeners("pow", self.power_status)
-                            previous_data["pow"] = self.power_status
+                        if previous_data.get(CMD_POWER) != self.power_status:
+                            self._forward_to_listeners(CMD_POWER, self.power_status)
+                            previous_data[CMD_POWER] = self.power_status
 
                         if self.power_status == self.POWERSTATUS_ON:
                             await self.update_volume()
-                            if previous_data.get("mute") != self.muted:
-                                self._forward_to_listeners("mute", self.muted)
-                                previous_data["mute"] = self.muted
-                            if previous_data.get("vol") != self.volume:
-                                self._forward_to_listeners("vol", self.volume)
-                                previous_data["vol"] = self.volume
+                            if previous_data.get(CMD_MUTE) != self.muted:
+                                self._forward_to_listeners(CMD_MUTE, self.muted)
+                                previous_data[CMD_MUTE] = self.muted
+                            if previous_data.get(CMD_VOLUME) != self.volume:
+                                self._forward_to_listeners(CMD_VOLUME, self.volume)
+                                previous_data[CMD_VOLUME] = self.volume
 
                             await self.update_video_source()
-                            if previous_data.get("sour") != self.video_source:
-                                self._forward_to_listeners("sour", self.video_source)
-                                previous_data["sour"] = self.video_source
+                            if previous_data.get(CMD_SOURCE) != self.video_source:
+                                self._forward_to_listeners(
+                                    CMD_SOURCE, self.video_source
+                                )
+                                previous_data[CMD_SOURCE] = self.video_source
 
                             for command in self._listener_commands:
-                                if command not in ["pow", "mute", "vol", "sour"]:
+                                if command not in [
+                                    CMD_POWER,
+                                    CMD_MUTE,
+                                    CMD_VOLUME,
+                                    CMD_SOURCE,
+                                ]:
                                     data = await self.send_command(command)
                                     if (
                                         data is not None
@@ -455,10 +472,10 @@ class BenQProjector(ABC):
                                         previous_data[command] = data
                     elif (
                         self.power_status == self.POWERSTATUS_UNKNOWN
-                        and previous_data.get("pow") != self.power_status
+                        and previous_data.get(CMD_POWER) != self.power_status
                     ):
-                        self._forward_to_listeners("pow", self.power_status)
-                        previous_data["pow"] = self.power_status
+                        self._forward_to_listeners(CMD_POWER, self.power_status)
+                        previous_data[CMD_POWER] = self.power_status
 
                 await asyncio.sleep(self._interval)
             except asyncio.CancelledError:
@@ -705,7 +722,7 @@ class BenQProjector(ABC):
 
             if matches and matches.group(1).lower() != command.command:
                 raise BenQInvallidResponseError(command, response)
-            if not matches and command.command == "modelname":
+            if not matches and command.command == CMD_MODELNAME:
                 # Some projectors only return the model name withouth the modelname command
                 # W700 instad of *modelname=W700#
                 matches = RESPONSE_RE_STATE_ONLY.match(response)
@@ -787,7 +804,7 @@ class BenQProjector(ABC):
         """
         Update the current power state.
         """
-        response = await self.send_command("pow")
+        response = await self.send_command(CMD_POWER)
         if response is None:
             if self.power_status == self.POWERSTATUS_POWERINGON:
                 logger.debug("Projector still powering on")
@@ -830,12 +847,12 @@ class BenQProjector(ABC):
         """
         Update the current volume state.
         """
-        if self.supports_command("mute"):
-            self.muted = await self.send_command("mute") == "on"
+        if self.supports_command(CMD_MUTE):
+            self.muted = await self.send_command(CMD_MUTE) == "on"
             logger.debug("Muted: %s", self.muted)
 
-        if self.supports_command("vol"):
-            volume = await self.send_command("vol")
+        if self.supports_command(CMD_VOLUME):
+            volume = await self.send_command(CMD_VOLUME)
             if volume is not None:
                 try:
                     volume = int(volume)
@@ -849,8 +866,8 @@ class BenQProjector(ABC):
         """
         Update the current video source state.
         """
-        if self.supports_command("sour"):
-            self.video_source = await self.send_command("sour")
+        if self.supports_command(CMD_SOURCE):
+            self.video_source = await self.send_command(CMD_SOURCE)
             logger.debug("Video source: %s", self.video_source)
 
     async def update(self) -> bool:
@@ -974,7 +991,7 @@ class BenQProjector(ABC):
         # Check the actual power state of the projector.
         response = None
         try:
-            response = await self._send_command(BenQCommand("pow"))
+            response = await self._send_command(BenQCommand(CMD_POWER))
             if response is None:
                 logger.error("Failed to retrieve projector power state.")
         except BenQBlockedItemError as ex:
@@ -1014,7 +1031,7 @@ class BenQProjector(ABC):
             # Continue powering on the projector.
             logger.info("Turning on projector")
             try:
-                response = await self._send_command(BenQCommand("pow", "on"))
+                response = await self._send_command(BenQCommand(CMD_POWER, ACTION_ON))
                 if response == "on":
                     self.power_status = self.POWERSTATUS_POWERINGON
                     self._power_timestamp = time.time()
@@ -1041,7 +1058,7 @@ class BenQProjector(ABC):
         # Check the actual power state of the projector.
         response = None
         try:
-            response = await self._send_command(BenQCommand("pow"))
+            response = await self._send_command(BenQCommand(CMD_POWER))
             if response is None:
                 logger.error("Failed to retrieve projector power state.")
         except BenQBlockedItemError as ex:
@@ -1081,7 +1098,7 @@ class BenQProjector(ABC):
             # Continue powering off the projector.
             logger.info("Turning off projector")
             try:
-                response = await self._send_command(BenQCommand("pow", "off"))
+                response = await self._send_command(BenQCommand(CMD_POWER, ACTION_OFF))
                 if response == "off":
                     self.power_status = self.POWERSTATUS_POWERINGOFF
                     self._power_timestamp = time.time()
@@ -1103,7 +1120,7 @@ class BenQProjector(ABC):
         """
         Mutes the volume.
         """
-        response = await self.send_command("mute", "on")
+        response = await self.send_command(CMD_MUTE, ACTION_ON)
         if response == "on":
             self.muted = True
             return True
@@ -1114,7 +1131,7 @@ class BenQProjector(ABC):
         """
         Unmutes the volume.
         """
-        response = await self.send_command("mute", "off")
+        response = await self.send_command(CMD_MUTE, ACTION_OFF)
         if response == "off":
             self.muted = False
             return True
@@ -1130,7 +1147,7 @@ class BenQProjector(ABC):
         elif self.volume >= 20:  # Can't go higher than 20
             return False
 
-        if await self.send_command("vol", "+") == "+":
+        if await self.send_command(CMD_VOLUME, "+") == "+":
             self.volume += 1
             return True
 
@@ -1145,7 +1162,7 @@ class BenQProjector(ABC):
         elif self.volume <= 0:  # Can't go lower than 0
             return False
 
-        if await self.send_command("vol", "-") == "-":
+        if await self.send_command(CMD_VOLUME, "-") == "-":
             self.volume -= 1
             return True
 
@@ -1161,7 +1178,9 @@ class BenQProjector(ABC):
         if not self._use_volume_increments:
             # Try to set the volume without increments, some projectors seem to support this
             try:
-                if await self._send_command(BenQCommand("vol", level)) == str(level):
+                if await self._send_command(BenQCommand(CMD_VOLUME, level)) == str(
+                    level
+                ):
                     logger.debug("Successfully set volume withouth increments")
                     return True
             except BenQUnsupportedItemError:
@@ -1187,7 +1206,7 @@ class BenQProjector(ABC):
         if video_source not in self.video_sources:
             return False
 
-        if await self.send_command("sour", video_source) == video_source:
+        if await self.send_command(CMD_SOURCE, video_source) == video_source:
             self.video_source = video_source
             return True
 
