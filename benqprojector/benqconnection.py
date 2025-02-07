@@ -9,8 +9,10 @@ Created on 25 Aug 2023
 import asyncio
 import logging
 import socket
+import time
 from abc import ABC, abstractmethod
 
+import aiofiles
 import serial
 import serial_asyncio_fast as serial_asyncio
 
@@ -44,13 +46,21 @@ class BenQConnection(ABC):
     _reader: asyncio.StreamReader = None
     _writer: asyncio.StreamWriter = None
     _read_timeout = None
+    _record_file = None
+
+    def __init__(self, record: bool = False):
+        super().__init__()
+
+        self._record = record
 
     @abstractmethod
     async def open(self) -> bool:
         """
         Opens the connection to the BenQ projector.
         """
-        raise NotImplementedError
+        if self._record:
+            file_name = time.strftime("%Y%m%d-%H%M%S.txt")
+            self._record_file = await aiofiles.open(file_name, "wb")
 
     def is_open(self):
         """
@@ -62,6 +72,9 @@ class BenQConnection(ABC):
         """
         Closes the connection to the BenQ projector.
         """
+        if self._record_file:
+            await self._record_file.close()
+
         if not self.is_open():
             return True
 
@@ -103,9 +116,14 @@ class BenQConnection(ABC):
             return b""
 
         try:
-            return await asyncio.wait_for(
+            response = await asyncio.wait_for(
                 self._reader.read(size), timeout=self._read_timeout
             )
+
+            if self._record_file:
+                await self._record_file.write(response)
+
+            return response
         except asyncio.exceptions.TimeoutError:
             return b""
         except (ConnectionError, TimeoutError) as ex:
@@ -128,9 +146,14 @@ class BenQConnection(ABC):
             return b""
 
         try:
-            return await asyncio.wait_for(
+            response = await asyncio.wait_for(
                 self._reader.readline(), timeout=self._read_timeout
             )
+
+            if self._record_file:
+                await self._record_file.write(response)
+
+            return response
         except asyncio.exceptions.TimeoutError:
             return b""
         except (ConnectionError, TimeoutError) as ex:
@@ -153,9 +176,14 @@ class BenQConnection(ABC):
             return b""
 
         try:
-            return await asyncio.wait_for(
+            response = await asyncio.wait_for(
                 self._reader.readuntil(separator), timeout=self._read_timeout
             )
+
+            if self._record_file:
+                await self._record_file.write(response)
+
+            return response
         except asyncio.exceptions.TimeoutError:
             return b""
         except asyncio.IncompleteReadError as ex:
@@ -208,8 +236,8 @@ class BenQSerialConnection(BenQConnection):
 
     _read_timeout = _SERIAL_TIMEOUT
 
-    def __init__(self, serial_port: str, baud_rate: int):
-        super().__init__()
+    def __init__(self, serial_port: str, baud_rate: int, record: bool = False):
+        super().__init__(record)
         assert serial_port is not None
 
         self._serial_port = serial_port
@@ -219,6 +247,8 @@ class BenQSerialConnection(BenQConnection):
         return self._serial_port
 
     async def open(self) -> bool:
+        await super().open()
+
         try:
             if not self.is_open():
                 self._reader, self._writer = (
@@ -246,8 +276,8 @@ class BenQTelnetConnection(BenQConnection):
 
     _read_timeout = _TELNET_TIMEOUT
 
-    def __init__(self, host: str, port: int = DEFAULT_PORT):
-        super().__init__()
+    def __init__(self, host: str, port: int = DEFAULT_PORT, record: bool = False):
+        super().__init__(record)
         assert host is not None
         assert port is not None
 
@@ -258,6 +288,8 @@ class BenQTelnetConnection(BenQConnection):
         return f"{self._host}:{self._port}"
 
     async def open(self) -> bool:
+        await super().open()
+
         try:
             if not self.is_open():
                 self._reader, self._writer = await asyncio.wait_for(

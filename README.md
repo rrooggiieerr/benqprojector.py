@@ -156,6 +156,11 @@ You can add the `--debug` flag to any CLI command to get more details on what's 
 
 `python3 -m benqprojector serial <serial port> <baud> status --debug`
 
+You can also add the `--record` flag to any CLI command to have the communication from the
+projector recorded into a file. Like so:
+
+`python3 -m benqprojector serial <serial port> <baud> status --record`
+
 ## Support my work
 
 Do you enjoy using this Python library? Then consider supporting my work using one of the following

@@ -1225,6 +1225,7 @@ class BenQProjectorSerial(BenQProjector):
         serial_port: str,
         baud_rate: int,
         model_hint: str = None,
+        record: bool = False,
     ) -> None:
         """
         Initializes the BenQProjectorSerial object.
@@ -1234,7 +1235,7 @@ class BenQProjectorSerial(BenQProjector):
 
         self.unique_id = serial_port
 
-        connection = BenQSerialConnection(serial_port, baud_rate)
+        connection = BenQSerialConnection(serial_port, baud_rate, record)
 
         super().__init__(connection, model_hint)
 
@@ -1250,6 +1251,7 @@ class BenQProjectorTelnet(BenQProjector):
         port: int = DEFAULT_PORT,
         model_hint: str = None,
         has_prompt: bool | None = None,
+        record: bool = False,
     ) -> None:
         """
         Initializes the BenQProjectorTelnet object.
@@ -1259,7 +1261,7 @@ class BenQProjectorTelnet(BenQProjector):
 
         self.unique_id = f"{host}:{port}"
 
-        connection = BenQTelnetConnection(host, port)
+        connection = BenQTelnetConnection(host, port, record)
         self.has_prompt = has_prompt
 
         super().__init__(connection, model_hint)

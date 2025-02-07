@@ -123,6 +123,7 @@ if __name__ == "__main__":
     )
     argparser.add_argument("--wait", dest="wait", action="store_true")
     argparser.add_argument("--debug", dest="debug_logging", action="store_true")
+    argparser.add_argument("--record", dest="record", action="store_true")
 
     args = argparser.parse_args()
 
@@ -136,9 +137,9 @@ if __name__ == "__main__":
 
     projector = None
     if "serial_port" in args:
-        projector = BenQProjectorSerial(args.serial_port, args.baud)
+        projector = BenQProjectorSerial(args.serial_port, args.baud, record=args.record)
     elif "host" in args:
-        projector = BenQProjectorTelnet(args.host, args.port)
+        projector = BenQProjectorTelnet(args.host, args.port, record=args.record)
 
     try:
         asyncio.run(main(projector, args.action))
