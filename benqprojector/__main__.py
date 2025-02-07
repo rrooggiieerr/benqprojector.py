@@ -122,11 +122,11 @@ if __name__ == "__main__":
         "action", choices=["status", "on", "off", "monitor", "examine"]
     )
     argparser.add_argument("--wait", dest="wait", action="store_true")
-    argparser.add_argument("--debug", dest="debugLogging", action="store_true")
+    argparser.add_argument("--debug", dest="debug_logging", action="store_true")
 
     args = argparser.parse_args()
 
-    if args.debugLogging:
+    if args.debug_logging:
         logging.basicConfig(
             format="%(asctime)s %(levelname)-8s %(filename)s:%(lineno)d %(message)s",
             level=logging.DEBUG,
