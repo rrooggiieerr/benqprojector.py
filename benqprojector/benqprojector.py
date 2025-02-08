@@ -38,6 +38,7 @@ from .benqconnection import (
     BenQSerialConnection,
     BenQTelnetConnection,
 )
+from .task_helper import save_task_reference
 
 logger = logging.getLogger(__name__)
 
@@ -62,17 +63,6 @@ CMD_SOURCE = "sour"
 ACTION_ON = "on"
 ACTION_OFF = "off"
 
-background_tasks = set()
-
-
-def _add_background_task(task: asyncio.Task) -> None:
-    # Add task to the set. This creates a strong reference.
-    background_tasks.add(task)
-
-    # To prevent keeping references to finished tasks forever, make each task remove its own
-    # reference from the set after completion:
-    task.add_done_callback(background_tasks.discard)
-
 
 class BenQProjector(ABC):
     """
@@ -89,7 +79,7 @@ class BenQProjector(ABC):
     _has_to_wait_for_prompt = True
     _use_volume_increments = False
 
-    _read_task = None
+    _read_task: asyncio.Task = None
     _loop = None
     _listeners: list[Any]
     _interval: int = None
@@ -355,7 +345,7 @@ class BenQProjector(ABC):
             and self._interval is not None
         ):
             self._read_task = asyncio.create_task(self._read_coroutine())
-            _add_background_task(self._read_task)
+            save_task_reference(self._read_task)
 
         return True
 
@@ -390,7 +380,7 @@ class BenQProjector(ABC):
 
             if self._read_task is None and self._interval is not None:
                 self._read_task = asyncio.create_task(self._read_coroutine())
-                _add_background_task(self._read_task)
+                save_task_reference(self._read_task)
 
     def _forward_to_listeners(self, command: str, data: Any | None):
         for listener in self._listeners:
