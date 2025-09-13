@@ -182,7 +182,7 @@ projector recorded into a file. Like so:
 ## Support my work
 
 Do you enjoy using this Python library? Please consider supporting my work through one of the following
-platforms, your contribution is greatly appreciated and keeps me motivated:
+platforms. Your contribution is greatly appreciated and keeps me motivated:
 
 [![GitHub Sponsors][github-shield]][github]
 [![PayPal][paypal-shield]][paypal]
