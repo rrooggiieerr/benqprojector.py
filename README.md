@@ -114,10 +114,27 @@ To install the Python BenQ projector library use the Python package manager PIP:
 
 `pip3 install benqprojector`
 
+If you intend to only use the library for the CLI it is recomended to install the library in a
+virtual environment:
+
+```
+python3 -m venv benqprojector
+. benqprojector/bin/activate
+pip3 install benqprojector
+deactivate
+```
+
 ## `benqprojector` CLI
 
 You can use the Python BenQ projector library directly from the command line to turn on and off
 your projector using the following syntax:
+
+If you installed the library in a virtual environment then first enable the virtual environment
+before executing any of the commands:
+
+```
+. benqprojector/bin/activate
+```
 
 Status of the projector: `python3 -m benqprojector serial <serial port> <baud> status`  
 Turn on the projector: `python3 -m benqprojector serial <serial port> <baud> on`  

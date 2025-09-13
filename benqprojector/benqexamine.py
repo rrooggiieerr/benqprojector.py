@@ -285,7 +285,7 @@ class BenQProjectorExamine:
         )
         return self.menu_positions
 
-    async def detect_projector_features(self):
+    async def detect_projector_features(self) -> {}:
         """
         Detect which features are supported by the projector.
         """
