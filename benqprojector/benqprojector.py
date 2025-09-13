@@ -749,8 +749,6 @@ class BenQProjector(ABC):
             )
         except BenQConnectionError:
             await self.connection.close()
-        except BenQResponseTimeoutError:
-            await self.connection.close()
         except BenQProjectorError:
             pass
 
