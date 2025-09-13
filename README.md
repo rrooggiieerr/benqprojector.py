@@ -12,7 +12,7 @@
 ## Introduction
 
 Python library to control BenQ projectors over the serial or network interface including serial to
-bridges like [esp-link](https://github.com/jeelabs/esp-link).
+network bridges like [esp-link](https://github.com/jeelabs/esp-link).
 
 ## Features
 
