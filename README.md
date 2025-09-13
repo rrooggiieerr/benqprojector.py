@@ -4,15 +4,15 @@
 [![GitHub Release][releases-shield]][releases]
 [![Licence][license-shield]][license]
 [![Maintainer][maintainer-shield]][maintainer]  
-[![Github Sponsors][github-shield]][github]
+[![GitHub Sponsors][github-shield]][github]
 [![PayPal][paypal-shield]][paypal]
 [![BuyMeCoffee][buymecoffee-shield]][buymecoffee]
 [![Patreon][patreon-shield]][patreon]
 
 ## Introduction
 
-Python library to control BenQ projectors over the serial or network interface including serial to
-network bridges like [esp-link](https://github.com/jeelabs/esp-link).
+A Python library to control BenQ projectors via the serial or network interface, including serial
+to network bridges such as [esp-link](https://github.com/jeelabs/esp-link).
 
 ## Features
 
@@ -24,8 +24,8 @@ network bridges like [esp-link](https://github.com/jeelabs/esp-link).
 
 ## Protocol
 
-BenQ projectors and flat panels with a serial port can support one of three protocols. This plugin
-supports projectors which are of the L, P, T, W and X series but probably also others.
+BenQ projectors and flat panels with a serial port can support one of three protocols. This library
+supports BenQ projectors in the L, P, T, W and X series, and likely others.
 
 This Python library works if your projector supports the following command structure: 
 
@@ -42,7 +42,7 @@ Change source to HDMI: `<CR>*sour=hdmi#<CR>`
 
 ### PJLink
 
-This library does **not** implement the PJLink protocol, but a proparitary BenQ protocol instead.
+This library does **not** implement the PJLink protocol, but a proprietary BenQ protocol instead.
 The PJLink protocol is covered by other libraries.
 
 ## Hardware
@@ -50,13 +50,13 @@ The PJLink protocol is covered by other libraries.
 ### Serial port
 
 I'm using a generic serial to USB converter to connect to my projector. The projector has a male
-DB9 connector, thus you need a female conector on your USB converter.
+DB9 connector, thus you need a female connector on your USB converter.
 
-You can lookup and change the baud rate in the menu of your BenQ projector.
+You can look up and change the baud rate in the menu of your BenQ projector.
 
 ### Network connected projectors
 
-The commands as described above also work over a network connection. Although I don't own such
+The commands as described above also work over a network connection. Although I don't own such a
 projector I have implemented the network functionality using a serial to WiFi bridge. The network
 support for integrated networked BenQ projectors is thus experimental. Let me know if your network
 connected BenQ projector works.
@@ -74,6 +74,7 @@ using ethernet instead of WiFi.
 The following projectors are known to work:
 
 * HT4550i
+* MS521P
 * MW519
 * TH585
 * TK800m
@@ -103,18 +104,18 @@ Not supported:
 * RP790S
 * RP705H
 
-Some projectors need to be **on** to be able to detect the model and the library to work.
+Some projectors need to be **powered on** to be able to detect the model and the library to work.
 
 Please let me know if your projector is also supported by this Python library so I can improve the
 overview of supported projectors.
 
 ## Installation
 
-To install the Python BenQ projector library use the Python package manager PIP:
+To install the Python BenQ projector library use the Package Installer for Python PIP:
 
 `pip3 install benqprojector`
 
-If you intend to only use the library for the CLI it is recomended to install the library in a
+If you intend to only use the library for the CLI it is recommended to install the library in a
 virtual environment:
 
 ```
@@ -157,14 +158,14 @@ of the projector. If no port number is given the default port number 8000 is use
 ### Detecting your projector capabilities
 
 The benqprojector CLI can detect the commands, sources and modes your projector supports. If you
-like to have your projector fully supported by this Python library please run this command and
-create an issue on Github with the output attached.
+would like your projector to be fully supported by this Python library please run this command and
+create an issue on GitHub with the output attached.
 
 To examine your projector capabilities:
 
 `python3 -m benqprojector serial <serial port> <baud> examine`
 
-Your projector needs to be **on** and on an **active source** to be able to detect all your
+Your projector needs to be **powered on** and on an **active source** to be able to detect all your
 projector capabilities.
 
 ### Troubleshooting
@@ -180,17 +181,17 @@ projector recorded into a file. Like so:
 
 ## Support my work
 
-Do you enjoy using this Python library? Then consider supporting my work using one of the following
-platforms, your donation is greatly appreciated and keeps me motivated:
+Do you enjoy using this Python library? Please consider supporting my work through one of the following
+platforms, your contribution is greatly appreciated and keeps me motivated:
 
-[![Github Sponsors][github-shield]][github]
+[![GitHub Sponsors][github-shield]][github]
 [![PayPal][paypal-shield]][paypal]
 [![BuyMeCoffee][buymecoffee-shield]][buymecoffee]
 [![Patreon][patreon-shield]][patreon]
 
 ## Hire me
 
-If you're in need for a freelance Python developer for your project please contact me, you can find
+If you're in need of a freelance Python developer for your project please contact me, you can find
 my email address on [my GitHub profile](https://github.com/rrooggiieerr).
 
 [python-shield]: https://img.shields.io/badge/python-3670A0?style=for-the-badge&logo=python&logoColor=ffdd54
