@@ -552,10 +552,11 @@ class BenQProjector(ABC):
 
         if not self._has_to_wait_for_prompt:
             await self.connection.write(b"\r")
-            if await self.connection.read(1) == b"\r":
+            if await self.connection.read(1) == b">":
+                logger.debug("Prompt received")
                 return True
+            logger.warning("Prompt not received, wait for it")
             self._has_to_wait_for_prompt = True
-            return False
 
         start_time = datetime.now()
         while True:
@@ -564,6 +565,7 @@ class BenQProjector(ABC):
             if response == b"":
                 await self.connection.write(b"\r")
             elif response[-1:] == b">":
+                logger.debug("Prompt detected")
                 self._has_to_wait_for_prompt = False
                 return True
             elif response.strip(WHITESPACE.encode()) == b"":
@@ -578,6 +580,7 @@ class BenQProjector(ABC):
 
             await asyncio.sleep(0.05)
 
+        logger.warning("Prompt not detected")
         return False
 
     async def _read_response(self) -> str:
