@@ -84,6 +84,7 @@ The following projectors are known to work:
 * W1140
 * W1250
 * W4000i
+* W4100i
 * X3000i
 
 The following projectors are not tested but use the same protocol according to the documentation:
