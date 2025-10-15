@@ -668,7 +668,7 @@ class BenQProjector(ABC):
                     echo_received = True
                     previous_response = response
                     continue
-                logger.warning("No command echo received")
+                logger.warning("No command echo received for command %s", command)
                 self._expect_command_echo = False
 
             return response
