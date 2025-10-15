@@ -777,9 +777,6 @@ class BenQProjector(ABC):
             # Read and log the response
             raw_response = await self._read_raw_response(command)
             logger.debug(raw_response)
-        except BenQResponseTimeoutError:
-            await self.connection.close()
-            ex.command = command
         except BenQProjectorError as ex:
             ex.command = command
             raise
