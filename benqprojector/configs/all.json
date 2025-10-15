@@ -94,6 +94,7 @@
 		"hdmi",
 		"hdmi2",
 		"hdmi3",
+		"hdmi4",
 		"network",
 		"rgb",
 		"rgb2",
@@ -123,6 +124,7 @@
 		"preset",
 		"srgb",
 		"bright",
+		"brightcine",
 		"livingroom",
 		"game",
 		"vivid",
@@ -143,7 +145,12 @@
 		"infographic",
 		"sport",
 		"hdr",
-		"hlg"
+		"hlg",
+		"hdr10",
+		"filmmaker",
+		"filmmakerhdr",
+		"aicine",
+		"hdraicine"
 	],
 	"color_temperatures": [
 		"warmer",
