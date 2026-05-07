@@ -478,6 +478,35 @@ class BenQProjector(ABC):
             except (BrokenPipeError, ConnectionResetError, BenQConnectionError):
                 logger.error("Error communicating with BenQ projector")
                 await self._disconnect()
+            except BenQPromptTimeoutError:
+                # Projectors can briefly stop emitting the command prompt during
+                # power transitions. Without this branch the exception would
+                # propagate out, kill the read coroutine, and polling would
+                # never resume (entity stays unavailable until the integration
+                # is reloaded). Drop the connection so the next loop iteration
+                # will reconnect and resync state.
+                logger.warning(
+                    "Lost prompt while polling BenQ projector; reconnecting"
+                )
+                await self._disconnect()
+            except BenQProjectorError as ex:
+                # Transient command-level errors (blocked item / unsupported
+                # item / illegal format / empty response / too busy) should
+                # not stop the polling loop — log and try again on the next
+                # interval.
+                logger.debug(
+                    "Transient projector error during poll, ignoring: %s", ex
+                )
+            # pylint: disable=broad-exception-caught
+            except Exception:  # noqa: BLE001
+                # Last-resort safety net: any other unexpected error must not
+                # be allowed to escape the loop, otherwise the read task dies
+                # silently and polling stops forever. Log with traceback and
+                # continue.
+                logger.exception(
+                    "Unexpected error in BenQ projector read coroutine"
+                )
+                await self._disconnect()
 
         self._read_task = None
         logger.debug("Read coroutine stopped")
