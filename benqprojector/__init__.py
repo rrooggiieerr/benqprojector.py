@@ -189,6 +189,8 @@ class BenQProjector(ABC):
 
         try:
             if text is not None and len(text) > 0:
+                # `importlib.resources.read_text` returns a `str`, not a
+                # file-like object; use `json.loads` not `json.load`.
                 return json.loads(text)
 
             logger.debug("No or empty read config file %s", model_filename)
