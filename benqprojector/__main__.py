@@ -11,7 +11,7 @@ import logging
 import sys
 from typing import Any
 
-from serial.serialutil import SerialException
+from serialx import SerialException
 
 from benqprojector import (
     DEFAULT_PORT,

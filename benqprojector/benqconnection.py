@@ -13,8 +13,7 @@ import time
 from abc import ABC, abstractmethod
 
 import aiofiles
-import serial
-import serial_asyncio_fast as serial_asyncio
+import serialx
 
 logger = logging.getLogger(__name__)
 
@@ -255,17 +254,16 @@ class BenQSerialConnection(BenQConnection):
                 (
                     self._reader,
                     self._writer,
-                ) = await serial_asyncio.open_serial_connection(
+                ) = await serialx.open_serial_connection(
                     url=self._serial_port,
                     baudrate=self._baud_rate,
-                    bytesize=serial.EIGHTBITS,
-                    parity=serial.PARITY_NONE,
-                    stopbits=serial.STOPBITS_ONE,
-                    timeout=_SERIAL_TIMEOUT,
+                    byte_size=serialx.EIGHTBITS,
+                    parity=serialx.Parity.NONE,
+                    stopbits=serialx.StopBits.ONE,
                 )
 
             return True
-        except serial.SerialException as ex:
+        except (OSError, TimeoutError, ValueError, serialx.SerialException) as ex:
             raise BenQConnectionError(str(ex)) from ex
 
         return False
