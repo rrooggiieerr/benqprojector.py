@@ -189,7 +189,7 @@ class BenQProjector(ABC):
 
         try:
             if text is not None and len(text) > 0:
-                return json.load(text)
+                return json.loads(text)
 
             logger.debug("No or empty read config file %s", model_filename)
         except JSONDecodeError:
