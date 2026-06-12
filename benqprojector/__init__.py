@@ -189,7 +189,7 @@ class BenQProjector(ABC):
 
         try:
             if text is not None and len(text) > 0:
-                return json.load(text)
+                return json.loads(text)
 
             logger.debug("No or empty read config file %s", model_filename)
         except JSONDecodeError:
@@ -247,9 +247,7 @@ class BenQProjector(ABC):
             return True
 
         if not self.model:
-            self.projector_config = await self._loop.run_in_executor(
-                None, self._read_config, "minimal"
-            )
+            await self._read_config("minimal")
 
         if self.has_prompt is None:
             self.has_prompt = await self._detect_prompt()
