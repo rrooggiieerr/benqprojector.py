@@ -30,8 +30,7 @@ classifiers = [
     "Topic :: Home Automation"
 ]
 dependencies = [
-    "pyserial>=3.5",
-    "pyserial-asyncio-fast>=0.16",
+    "serialx>=1.7.2",
     "aiofiles>=25.1.0",
 ]
 
