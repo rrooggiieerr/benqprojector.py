@@ -20,6 +20,10 @@ logger = logging.getLogger(__name__)
 # Timeout in seconds
 _SERIAL_TIMEOUT = 0.05
 _TELNET_TIMEOUT = 0.2
+_CONNECT_TIMEOUT = 10
+
+# Required by serialx but ignored by the socket transport.
+_SOCKET_BAUD_RATE = 9600
 
 DEFAULT_PORT = 8000
 
@@ -283,6 +287,8 @@ class BenQTelnetConnection(BenQConnection):
 
         self._host = host
         self._port = port
+        uri_host = host if ":" not in host or host.startswith("[") else f"[{host}]"
+        self._url = f"socket://{uri_host}:{port}"
 
     def __str__(self):
         return f"{self._host}:{self._port}"
@@ -292,15 +298,19 @@ class BenQTelnetConnection(BenQConnection):
 
         try:
             if not self.is_open():
-                self._reader, self._writer = await asyncio.wait_for(
-                    asyncio.open_connection(self._host, self._port), timeout=10
+                self._reader, self._writer = await serialx.open_serial_connection(
+                    url=self._url,
+                    baudrate=_SOCKET_BAUD_RATE,
+                    connect_timeout=_CONNECT_TIMEOUT,
                 )
 
             return True
-        except asyncio.exceptions.TimeoutError as ex:
+        except TimeoutError as ex:
             raise BenQConnectionTimeoutError(str(ex)) from ex
         except socket.gaierror as ex:
             raise BenQConnectionError(ex.strerror) from ex
+        except (ValueError, serialx.SerialException) as ex:
+            raise BenQConnectionError(str(ex)) from ex
         except OSError as ex:
             if ex.errno in [64, 113]:
                 await self.close()
