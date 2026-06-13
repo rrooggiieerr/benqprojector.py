@@ -14,6 +14,7 @@ from abc import ABC, abstractmethod
 
 import aiofiles
 import serialx
+from serialx import Parity, StopBits
 
 logger = logging.getLogger(__name__)
 
@@ -81,14 +82,8 @@ class BenQConnection(ABC):
         try:
             self._writer.close()
             await self._writer.wait_closed()
-        except (ConnectionError, TimeoutError):
+        except (OSError, TimeoutError):
             pass
-        except OSError as ex:
-            if ex.errno in [64, 113]:
-                # logger.exception("Connection error")
-                pass
-            else:
-                logger.exception("Unhandled OSError")
 
         self._reader = None
         self._writer = None
@@ -126,15 +121,9 @@ class BenQConnection(ABC):
             return response
         except asyncio.exceptions.TimeoutError:
             return b""
-        except (ConnectionError, TimeoutError) as ex:
+        except (OSError, TimeoutError) as ex:
             await self.close()
             raise BenQConnectionError(ex.strerror) from ex
-        except OSError as ex:
-            if ex.errno in [64, 113]:
-                await self.close()
-                raise BenQConnectionError(ex.strerror) from ex
-            logger.exception("Unhandled OSError")
-            await self.close()
 
         return b""
 
@@ -156,15 +145,9 @@ class BenQConnection(ABC):
             return response
         except asyncio.exceptions.TimeoutError:
             return b""
-        except (ConnectionError, TimeoutError) as ex:
+        except (OSError, TimeoutError) as ex:
             await self.close()
             raise BenQConnectionError(ex.strerror) from ex
-        except OSError as ex:
-            if ex.errno in [64, 113]:
-                await self.close()
-                raise BenQConnectionError(ex.strerror) from ex
-            logger.exception("Unhandled OSError")
-            await self.close()
 
         return b""
 
@@ -191,15 +174,9 @@ class BenQConnection(ABC):
             if ex.partial is not None:
                 return ex.partial
             return b""
-        except (ConnectionError, TimeoutError) as ex:
+        except (OSError, TimeoutError) as ex:
             await self.close()
             raise BenQConnectionError(ex.strerror) from ex
-        except OSError as ex:
-            if ex.errno in [64, 113]:
-                await self.close()
-                raise BenQConnectionError(ex.strerror) from ex
-            logger.exception("Unhandled OSError")
-            await self.close()
 
         return b""
 
@@ -212,15 +189,9 @@ class BenQConnection(ABC):
             await self._writer.drain()
 
             return len(data)
-        except (ConnectionError, TimeoutError) as ex:
+        except (OSError, TimeoutError) as ex:
             await self.close()
             raise BenQConnectionError(ex.strerror) from ex
-        except OSError as ex:
-            if ex.errno in [64, 113]:
-                await self.close()
-                raise BenQConnectionError(ex.strerror) from ex
-            logger.exception("Unhandled OSError")
-            await self.close()
 
     async def flush(self) -> None:
         """
@@ -236,15 +207,15 @@ class BenQSerialConnection(BenQConnection):
 
     _read_timeout = _SERIAL_TIMEOUT
 
-    def __init__(self, serial_port: str, baud_rate: int, record: bool = False):
+    def __init__(self, path: str, baud_rate: int, record: bool = False):
         super().__init__(record)
-        assert serial_port is not None
+        assert path is not None
 
-        self._serial_port = serial_port
+        self._path = path
         self._baud_rate = baud_rate
 
     def __str__(self):
-        return self._serial_port
+        return self._path
 
     async def open(self) -> bool:
         await super().open()
@@ -255,15 +226,16 @@ class BenQSerialConnection(BenQConnection):
                     self._reader,
                     self._writer,
                 ) = await serialx.open_serial_connection(
-                    url=self._serial_port,
+                    url=self._path,
                     baudrate=self._baud_rate,
-                    byte_size=serialx.EIGHTBITS,
-                    parity=serialx.Parity.NONE,
-                    stopbits=serialx.StopBits.ONE,
+                    byte_size=8,
+                    parity=Parity.NONE,
+                    stopbits=StopBits.ONE,
+                    timeout=1,
                 )
 
             return True
-        except (OSError, TimeoutError, ValueError, serialx.SerialException) as ex:
+        except (OSError, serialx.SerialException, TimeoutError, serialx.UnsupportedSetting) as ex:
             raise BenQConnectionError(str(ex)) from ex
 
         return False
@@ -302,10 +274,7 @@ class BenQTelnetConnection(BenQConnection):
         except socket.gaierror as ex:
             raise BenQConnectionError(ex.strerror) from ex
         except OSError as ex:
-            if ex.errno in [64, 113]:
-                await self.close()
-                raise BenQConnectionError(ex.strerror) from ex
-            logger.exception("Unhandled OSError")
             await self.close()
+            raise BenQConnectionError(ex.strerror) from ex
 
         return False

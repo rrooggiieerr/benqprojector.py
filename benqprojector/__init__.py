@@ -1230,7 +1230,7 @@ class BenQProjectorSerial(BenQProjector):
         super().__init__(connection, model_hint)
 
 
-class BenQProjectorTelnet(BenQProjector):
+class BenQProjectorTelnet(BenQProjectorSerial):
     """
     BenQ Projector class for controlling BenQ projectors over a Telnet connection.
     """
@@ -1251,7 +1251,6 @@ class BenQProjectorTelnet(BenQProjector):
 
         self.unique_id = f"{host}:{port}"
 
-        connection = BenQTelnetConnection(host, port, record)
         self.has_prompt = has_prompt
 
-        super().__init__(connection, model_hint)
+        super().__init__(f"socket://{host}:{port}", 0, model_hint, record)
