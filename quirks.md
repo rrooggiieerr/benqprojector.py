@@ -14,7 +14,7 @@ The **W1100** echos the `*bri=?#` command twice while echoing the other commands
 
 ## Invalid command response
 
-Some models don't follow the `*<key>=<value>#` response format for all commands or the format differs if the projector is on versus off. For instance the **W1110** returns `DIRECTPOWER=OFF#` instead of `*DIRECTPOWER=OFF#` when the projector is off but the expected `*DIRECTPOWER=OFF#` if the projector is on.
+Some models don't follow the `*<key>=<value>#` response format for all commands or the format differs if the projector is on versus off. For instance the **W1110** returns `DIRECTPOWER=OFF#` instead of `*DIRECTPOWER=OFF#` when the projector is off but the expected `*DIRECTPOWER=ON#` if the projector is on.
 
 ## Model name
 
