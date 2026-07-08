@@ -33,3 +33,5 @@ The **W2000** returns a different modelname when the projector is turned off the
 ## Miscellaneous 
 
 The **W1100** `ltim`, `bri`, `con`, `color` and `sharp` command response does include spaces and does not end with `#`. `*LTIM= 1383` returns instead of the expected `*LTIM=1383#`. Similar for the other commands.
+
+the **W1110** uses the `menu_positions` value `cen` to position the menu in the center of the screen, while for the **X3000i** the required value is `center`.
