@@ -82,7 +82,7 @@ class BenQConnection(ABC):
         try:
             self._writer.close()
             await self._writer.wait_closed()
-        except (OSError, TimeoutError):
+        except (OSError, serialx.SerialException):
             pass
 
         self._reader = None
@@ -121,7 +121,7 @@ class BenQConnection(ABC):
             return response
         except asyncio.exceptions.TimeoutError:
             return b""
-        except (OSError, TimeoutError) as ex:
+        except (OSError, serialx.SerialException) as ex:
             await self.close()
             raise BenQConnectionError(ex.strerror) from ex
 
@@ -145,7 +145,7 @@ class BenQConnection(ABC):
             return response
         except asyncio.exceptions.TimeoutError:
             return b""
-        except (OSError, TimeoutError) as ex:
+        except (OSError, serialx.SerialException) as ex:
             await self.close()
             raise BenQConnectionError(ex.strerror) from ex
 
@@ -174,7 +174,7 @@ class BenQConnection(ABC):
             if ex.partial is not None:
                 return ex.partial
             return b""
-        except (OSError, TimeoutError) as ex:
+        except (OSError, serialx.SerialException) as ex:
             await self.close()
             raise BenQConnectionError(ex.strerror) from ex
 
@@ -189,7 +189,7 @@ class BenQConnection(ABC):
             await self._writer.drain()
 
             return len(data)
-        except (OSError, TimeoutError) as ex:
+        except (OSError, serialx.SerialException) as ex:
             await self.close()
             raise BenQConnectionError(ex.strerror) from ex
 
@@ -235,13 +235,13 @@ class BenQSerialConnection(BenQConnection):
                 )
 
             return True
-        except (OSError, serialx.SerialException, TimeoutError, serialx.UnsupportedSetting) as ex:
+        except (OSError, serialx.SerialException, serialx.UnsupportedSetting) as ex:
             raise BenQConnectionError(str(ex)) from ex
 
         return False
 
 
-class BenQTelnetConnection(BenQConnection):
+class BenQTelnetConnection(BenQSerialConnection):
     """
     Class to handle the telnet connection type.
     """
@@ -249,32 +249,7 @@ class BenQTelnetConnection(BenQConnection):
     _read_timeout = _TELNET_TIMEOUT
 
     def __init__(self, host: str, port: int = DEFAULT_PORT, record: bool = False):
-        super().__init__(record)
         assert host is not None
         assert port is not None
 
-        self._host = host
-        self._port = port
-
-    def __str__(self):
-        return f"{self._host}:{self._port}"
-
-    async def open(self) -> bool:
-        await super().open()
-
-        try:
-            if not self.is_open():
-                self._reader, self._writer = await asyncio.wait_for(
-                    asyncio.open_connection(self._host, self._port), timeout=10
-                )
-
-            return True
-        except asyncio.exceptions.TimeoutError as ex:
-            raise BenQConnectionTimeoutError(str(ex)) from ex
-        except socket.gaierror as ex:
-            raise BenQConnectionError(ex.strerror) from ex
-        except OSError as ex:
-            await self.close()
-            raise BenQConnectionError(ex.strerror) from ex
-
-        return False
+        super().__init__(f"socket://{host}:{port}", record)
