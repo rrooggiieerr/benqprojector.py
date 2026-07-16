@@ -6,7 +6,9 @@ from unittest.mock import AsyncMock, Mock, patch
 
 import serialx
 
-from benqprojector.benqconnection import BenQSerialConnection
+from benqprojector import BenQProjectorSerial
+from benqprojector.benqclasses import BenQResponseTimeoutError
+from benqprojector.benqconnection import BenQConnectionError, BenQSerialConnection
 
 BAUD_RATE = 115200
 
@@ -72,3 +74,26 @@ class Test(unittest.IsolatedAsyncioTestCase):
         old_writer.wait_closed.assert_awaited_once_with()
         self.assertIs(connection._reader, new_reader)
         self.assertIs(connection._writer, new_writer)
+
+    async def test_backend_write_error_closes_connection(self):
+        connection = BenQSerialConnection("esphome://device", BAUD_RATE)
+        connection._reader = Mock()
+        connection._reader.at_eof.return_value = False
+        connection._writer = Mock()
+        connection._writer.is_closing.return_value = False
+        connection._writer.drain = AsyncMock(side_effect=RuntimeError("API stopped"))
+        connection._writer.wait_closed = AsyncMock()
+
+        with self.assertRaisesRegex(BenQConnectionError, "API stopped"):
+            await connection.write(b"test")
+
+        self.assertFalse(connection.is_open())
+
+    async def test_response_timeout_closes_connection(self):
+        projector = BenQProjectorSerial("esphome://device", BAUD_RATE)
+        projector._send_command = AsyncMock(side_effect=BenQResponseTimeoutError())
+        projector.connection.close = AsyncMock()
+
+        self.assertIsNone(await projector.send_command("pow"))
+
+        projector.connection.close.assert_awaited_once_with()

@@ -90,6 +90,10 @@ class BenQConnection(ABC):
             await self._writer.wait_closed()
         except (OSError, serialx.SerialException):
             pass
+        # Some transports leak implementation-specific exceptions while their
+        # underlying connection is being closed. The local state must still be reset.
+        except Exception:  # pylint: disable=broad-exception-caught
+            logger.exception("Transport error while closing connection")
 
         self._reader = None
         self._writer = None
@@ -105,9 +109,13 @@ class BenQConnection(ABC):
         """
         Resets the reader and drains the writer of the connection.
         """
-        await self.read(-1)
-        await self._writer.drain()
-        return True
+        try:
+            await self.read(-1)
+            await self._writer.drain()
+            return True
+        except Exception as ex:  # pylint: disable=broad-exception-caught
+            await self.close()
+            raise BenQConnectionError(str(ex)) from ex
 
     async def read(self, size: int = 1) -> bytes:
         """
@@ -129,7 +137,11 @@ class BenQConnection(ABC):
             return b""
         except (OSError, serialx.SerialException) as ex:
             await self.close()
-            raise BenQConnectionError(ex.strerror) from ex
+            raise BenQConnectionError(str(ex)) from ex
+        # serialx transports may leak backend-specific exceptions.
+        except Exception as ex:  # pylint: disable=broad-exception-caught
+            await self.close()
+            raise BenQConnectionError(str(ex)) from ex
 
         return b""
 
@@ -153,7 +165,10 @@ class BenQConnection(ABC):
             return b""
         except (OSError, serialx.SerialException) as ex:
             await self.close()
-            raise BenQConnectionError(ex.strerror) from ex
+            raise BenQConnectionError(str(ex)) from ex
+        except Exception as ex:  # pylint: disable=broad-exception-caught
+            await self.close()
+            raise BenQConnectionError(str(ex)) from ex
 
         return b""
 
@@ -182,7 +197,10 @@ class BenQConnection(ABC):
             return b""
         except (OSError, serialx.SerialException) as ex:
             await self.close()
-            raise BenQConnectionError(ex.strerror) from ex
+            raise BenQConnectionError(str(ex)) from ex
+        except Exception as ex:  # pylint: disable=broad-exception-caught
+            await self.close()
+            raise BenQConnectionError(str(ex)) from ex
 
         return b""
 
@@ -197,7 +215,10 @@ class BenQConnection(ABC):
             return len(data)
         except (OSError, serialx.SerialException) as ex:
             await self.close()
-            raise BenQConnectionError(ex.strerror) from ex
+            raise BenQConnectionError(str(ex)) from ex
+        except Exception as ex:  # pylint: disable=broad-exception-caught
+            await self.close()
+            raise BenQConnectionError(str(ex)) from ex
 
     async def flush(self) -> None:
         """

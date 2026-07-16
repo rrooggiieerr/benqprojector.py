@@ -755,6 +755,10 @@ class BenQProjector(ABC):
             )
         except BenQConnectionError:
             await self.connection.close()
+        except BenQResponseTimeoutError:
+            # A transport can retain a non-closing writer after the underlying
+            # connection is lost. Force a fresh connection on the next poll.
+            await self.connection.close()
         except BenQProjectorError:
             pass
 
