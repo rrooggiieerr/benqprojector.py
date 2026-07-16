@@ -67,7 +67,12 @@ class BenQConnection(ABC):
         """
         Checks if the connection is open.
         """
-        return self._writer is not None
+        return (
+            self._writer is not None
+            and self._reader is not None
+            and not self._writer.is_closing()
+            and not self._reader.at_eof()
+        )
 
     async def close(self) -> bool:
         """
@@ -76,7 +81,8 @@ class BenQConnection(ABC):
         if self._record_file:
             await self._record_file.close()
 
-        if not self.is_open():
+        if self._writer is None:
+            self._reader = None
             return True
 
         try:
@@ -221,6 +227,8 @@ class BenQSerialConnection(BenQConnection):
         await super().open()
 
         try:
+            if self._writer is not None and not self.is_open():
+                await self.close()
             if not self.is_open():
                 (
                     self._reader,
