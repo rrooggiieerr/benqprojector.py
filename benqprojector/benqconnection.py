@@ -214,6 +214,11 @@ class BenQSerialConnection(BenQConnection):
         self._path = path
         self._baud_rate = baud_rate
 
+        if path.startswith(
+            ("socket://", "rfc2217://", "esphome://", "esphome-hass://", "pyodide://")
+        ):
+            self._read_timeout = _TELNET_TIMEOUT
+
     def __str__(self):
         return self._path
 
