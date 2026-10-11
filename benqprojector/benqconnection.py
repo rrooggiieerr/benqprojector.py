@@ -8,7 +8,6 @@ Created on 25 Aug 2023
 
 import asyncio
 import logging
-import socket
 import time
 from abc import ABC, abstractmethod
 
@@ -23,6 +22,8 @@ _SERIAL_TIMEOUT = 0.05
 _TELNET_TIMEOUT = 0.2
 
 DEFAULT_PORT = 8000
+# The baud rate is not used for network connections, but a valid one is required.
+_NETWORK_BAUD_RATE = 9600
 
 
 class BenQConnectionError(Exception):
@@ -59,7 +60,7 @@ class BenQConnection(ABC):
         """
         Opens the connection to the BenQ projector.
         """
-        if self._record:
+        if self._record and self._record_file is None:
             file_name = time.strftime("%Y%m%d-%H%M%S.txt")
             self._record_file = await aiofiles.open(file_name, "wb")
 
@@ -75,123 +76,105 @@ class BenQConnection(ABC):
         """
         if self._record_file:
             await self._record_file.close()
+            self._record_file = None
 
         if not self.is_open():
             return True
 
-        try:
-            self._writer.close()
-            await self._writer.wait_closed()
-        except (OSError, serialx.SerialException):
-            pass
-
+        # Forget the streams first, so concurrent users see a closed connection instead of
+        # a half closed one.
+        writer = self._writer
         self._reader = None
         self._writer = None
 
-        if not self.is_open():
-            logger.debug("Connection closed")
-            return True
+        try:
+            writer.close()
+            await asyncio.wait_for(writer.wait_closed(), timeout=2)
+        except (OSError, serialx.SerialException, asyncio.TimeoutError) as ex:
+            logger.debug("Error while closing connection: %s", ex)
 
-        logger.error("Failed to close connection")
-        return False
+        logger.debug("Connection closed")
+        return True
+
+    def _check_open(self) -> None:
+        if self._reader is None or self._writer is None:
+            raise BenQConnectionError("Not connected")
+
+    async def _connection_error(self, ex: Exception) -> BenQConnectionError:
+        """
+        Closes the connection and returns the BenQConnectionError to raise.
+        """
+        await self.close()
+        return BenQConnectionError(getattr(ex, "strerror", None) or str(ex) or repr(ex))
+
+    async def _read(self, read_coroutine) -> bytes:
+        self._check_open()
+        if self._reader.at_eof():
+            # The peer closed the connection, every further read would return b"" forever.
+            await self.close()
+            raise BenQConnectionError("Connection closed by peer")
+
+        try:
+            response = await asyncio.wait_for(
+                read_coroutine(self._reader), timeout=self._read_timeout
+            )
+
+            if self._record_file:
+                await self._record_file.write(response)
+
+            return response
+        except asyncio.IncompleteReadError as ex:
+            # End of stream before the separator was found, the connection is gone.
+            await self.close()
+            raise BenQConnectionError("Connection closed by peer") from ex
+        except asyncio.TimeoutError:
+            # Nothing (more) to read within the read timeout.
+            return b""
+        except (OSError, serialx.SerialException) as ex:
+            raise await self._connection_error(ex) from ex
 
     async def reset(self) -> bool:
         """
         Resets the reader and drains the writer of the connection.
         """
         await self.read(-1)
-        await self._writer.drain()
+        self._check_open()
+        try:
+            await self._writer.drain()
+        except (OSError, serialx.SerialException) as ex:
+            raise await self._connection_error(ex) from ex
         return True
 
     async def read(self, size: int = 1) -> bytes:
         """
         Read size bytes from the connection.
         """
-        if self._reader.at_eof():
-            return b""
-
-        try:
-            response = await asyncio.wait_for(
-                self._reader.read(size), timeout=self._read_timeout
-            )
-
-            if self._record_file:
-                await self._record_file.write(response)
-
-            return response
-        except asyncio.exceptions.TimeoutError:
-            return b""
-        except (OSError, serialx.SerialException) as ex:
-            await self.close()
-            raise BenQConnectionError(ex.strerror) from ex
-
-        return b""
+        return await self._read(lambda reader: reader.read(size))
 
     async def readline(self) -> bytes:
         """
         Reads a line from the connection.
         """
-        if self._reader.at_eof():
-            return b""
-
-        try:
-            response = await asyncio.wait_for(
-                self._reader.readline(), timeout=self._read_timeout
-            )
-
-            if self._record_file:
-                await self._record_file.write(response)
-
-            return response
-        except asyncio.exceptions.TimeoutError:
-            return b""
-        except (OSError, serialx.SerialException) as ex:
-            await self.close()
-            raise BenQConnectionError(ex.strerror) from ex
-
-        return b""
+        return await self._read(lambda reader: reader.readline())
 
     async def readuntil(self, separator=b"\n"):
         """
         Read data until separator is found.
         """
-        if self._reader.at_eof():
-            return b""
-
-        try:
-            response = await asyncio.wait_for(
-                self._reader.readuntil(separator), timeout=self._read_timeout
-            )
-
-            if self._record_file:
-                await self._record_file.write(response)
-
-            return response
-        except asyncio.exceptions.TimeoutError:
-            return b""
-        except asyncio.IncompleteReadError as ex:
-            logger.exception("Incomplete read")
-            if ex.partial is not None:
-                return ex.partial
-            return b""
-        except (OSError, serialx.SerialException) as ex:
-            await self.close()
-            raise BenQConnectionError(ex.strerror) from ex
-
-        return b""
+        return await self._read(lambda reader: reader.readuntil(separator))
 
     async def write(self, data: bytes) -> int:
         """
         Output the given string over the connection.
         """
+        self._check_open()
         try:
             self._writer.write(data)
             await self._writer.drain()
 
             return len(data)
         except (OSError, serialx.SerialException) as ex:
-            await self.close()
-            raise BenQConnectionError(ex.strerror) from ex
+            raise await self._connection_error(ex) from ex
 
     async def flush(self) -> None:
         """
@@ -243,8 +226,6 @@ class BenQSerialConnection(BenQConnection):
         except (OSError, serialx.SerialException, serialx.UnsupportedSetting) as ex:
             raise BenQConnectionError(str(ex)) from ex
 
-        return False
-
 
 class BenQTelnetConnection(BenQSerialConnection):
     """
@@ -257,4 +238,4 @@ class BenQTelnetConnection(BenQSerialConnection):
         assert host is not None
         assert port is not None
 
-        super().__init__(f"socket://{host}:{port}", record)
+        super().__init__(f"socket://{host}:{port}", _NETWORK_BAUD_RATE, record)
