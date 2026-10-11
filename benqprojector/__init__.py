@@ -58,7 +58,19 @@ WHITESPACE = string.whitespace + "\x00"
 END_OF_RESPONSE = b"#\n\r\x00"
 
 _RESPONSE_TIMEOUT = 5.0
-_CONNECTION_LOCK_TIMEOUT = 1
+# A single command can take up to _RESPONSE_TIMEOUT to complete. With a 1 second lock timeout
+# user commands that coincided with a status poll failed with "Too busy".
+_CONNECTION_LOCK_TIMEOUT = _RESPONSE_TIMEOUT + 2
+# Stop polling a command after this many consecutive "unsupported item" responses, until the
+# next power on. Models without their own config file use the generic config with all known
+# commands, most of which a given model does not support.
+_MAX_UNSUPPORTED_RESPONSES = 3
+# Seconds between reconnect attempts after the connection was lost, doubled up to the maximum.
+_RECONNECT_DELAY_MIN = 5
+_RECONNECT_DELAY_MAX = 60
+# Reopen the connection after this many polls in a row without a valid power state, the
+# connection might be stuck while the socket is still open.
+_MAX_FAILED_POLLS = 3
 
 CMD_MODELNAME = "modelname"
 CMD_POWER = "pow"
@@ -169,6 +181,18 @@ class BenQProjector(ABC):
         self._connection_lock = asyncio.Lock()
         self._listeners = []
         self._listener_commands = []
+        self._unsupported_counts: dict[str, int] = {}
+        self._logged_once: set[str] = set()
+
+    def _log_once(self, key: str, level: int, msg: str, *args) -> None:
+        """
+        Logs a message at the given level the first time, at debug level afterwards.
+        """
+        if key in self._logged_once:
+            logger.debug(msg, *args)
+        else:
+            self._logged_once.add(key)
+            logger.log(level, msg, *args)
 
     def busy(self):
         """
@@ -229,25 +253,46 @@ class BenQProjector(ABC):
     async def connect(self, loop=None, interval: float = None) -> bool:
         """
         Connect to the BenQ projector.
+
+        Returns False, instead of raising, when the projector can not be reached or does not
+        respond so the caller can retry later.
         """
         assert interval is None or interval > 0
 
         self._loop = loop
         if self._loop is None:
-            self._loop = asyncio.get_event_loop()
+            self._loop = asyncio.get_running_loop()
 
         try:
             if not await self._connect():
                 return False
-        except BenQConnectionError:
-            logger.error("Problem communicating with %s", self.unique_id)
+
+            if self._init and not await self._initialize():
+                await self._disconnect()
+                return False
+        except BenQConnectionError as ex:
+            logger.error("Problem communicating with %s: %s", self.connection, ex)
+            await self._disconnect()
             return False
 
-        if not self._init:
-            return True
+        self._interval = interval
 
+        if (
+            self._read_task is None
+            and len(self._listeners) > 0
+            and self._interval is not None
+        ):
+            self._read_task = asyncio.create_task(self._read_coroutine())
+            save_task_reference(self._read_task)
+
+        return True
+
+    async def _initialize(self) -> bool:
+        """
+        Detects the prompt, model and supported commands of the projector.
+        """
         if not self.model:
-            await self._read_config("minimal")
+            self.projector_config = await self._read_config("minimal")
 
         if self.has_prompt is None:
             self.has_prompt = await self._detect_prompt()
@@ -265,9 +310,10 @@ class BenQProjector(ABC):
                 "Failed to get projector command prompt, is your projector properly connected?"
             )
             return False
-        except BenQBlockedItemError:
-            logger.exception(
-                "Unable to retrieve projector power state, is projector powering down?"
+        except BenQBlockedItemError as ex:
+            logger.warning(
+                "Unable to retrieve projector power state, is projector powering on or off? %s",
+                ex,
             )
         except BenQEmptyResponseError as ex:
             logger.warning(ex)
@@ -275,30 +321,38 @@ class BenQProjector(ABC):
             logger.exception("Unable to retrieve projector power state.")
             return False
 
+        if not self.connected():
+            # The connection was lost while retrieving the power state.
+            return False
+
         model = None
         try:
             model = await self._send_command(
                 BenQCommand(CMD_MODELNAME), lowercase_response=False
             )
-            assert model is not None, "Failed to retrieve projector model"
         except BenQIllegalFormatError:
             # W1000 does not seem to return projector model, but gives an illegal
             # format error. Maybe there are other models with the same problem?
-            logger.exception("Unable to retrieve projector model")
-        except BenQBlockedItemError:
+            logger.warning("Unable to retrieve projector model")
+        except BenQBlockedItemError as ex:
             # W1070/W1250 does not seem to return projector model when off, but gives
             # an blocked item error. Maybe there are other models with the same problem?
-            if power == "off":
-                logger.exception(
-                    "Unable to retrieve projector model while projector is %s",
-                    power,
-                )
-            else:
-                # It could also be that the projector is powering down
-                logger.exception(
-                    "Unable to retrieve projector model while projector is %s, is projector powering down?",
-                    power,
-                )
+            logger.warning(
+                "Unable to retrieve projector model while projector is %s: %s",
+                power,
+                ex,
+            )
+        except BenQProjectorError as ex:
+            logger.warning("Unable to retrieve projector model: %s", ex)
+
+        if not self.connected():
+            return False
+
+        if model is None and self.model is None:
+            # Return False instead of asserting, so callers like Home Assistant retry the
+            # connection later instead of giving up.
+            logger.error("Failed to retrieve projector model")
+            return False
 
         if (
             model is not None
@@ -336,21 +390,14 @@ class BenQProjector(ABC):
             self._mac = mac.lower()
             self.unique_id = self._mac
 
+        if not self.connected():
+            return False
+
         logger.info("Device on %s available", self.connection)
 
         await self.update_power()
 
         self._init = False
-        self._interval = interval
-
-        if (
-            self._read_task is None
-            and len(self._listeners) > 0
-            and self._interval is not None
-        ):
-            self._read_task = asyncio.create_task(self._read_coroutine())
-            save_task_reference(self._read_task)
-
         return True
 
     def connected(self) -> bool:
@@ -366,9 +413,11 @@ class BenQProjector(ABC):
         """
         Disconnect from the BenQ projector.
         """
-        if self.connected():
-            await self._cancel_read()
-            await self._disconnect()
+        # Always stop the read task, also when the connection is currently down. Otherwise a
+        # reload during an outage leaves the old read task running, fighting the new one over
+        # the single projector connection.
+        await self._cancel_read()
+        await self._disconnect()
 
         return not self.connected()
 
@@ -395,89 +444,139 @@ class BenQProjector(ABC):
                 logger.exception("Exception in listener: %s", listener)
 
     async def _cancel_read(self) -> bool:
-        if self._read_task is not None and not (
-            self._read_task.done() or self._read_task.cancelled()
-        ):
-            return self._read_task.cancel()
+        task = self._read_task
+        if task is None or task.done():
+            return True
+
+        task.cancel()
+        try:
+            await task
+        except asyncio.CancelledError:
+            pass
+        # pylint: disable=broad-exception-caught
+        except Exception:
+            logger.exception("Read task ended with an exception")
 
         return True
 
+    def _poll_command(self, command: str) -> bool:
+        return self._unsupported_counts.get(command, 0) < _MAX_UNSUPPORTED_RESPONSES
+
     async def _read_coroutine(self):
         """
-        Reads the current status of the projector in a loop
+        Reads the current status of the projector in a loop.
+
+        The loop only ends when the task is cancelled. Any other exception is logged and the
+        loop reconnects, so a single unexpected error can not stop the status updates.
         """
         previous_data = {}
+        reconnect_delay = _RECONNECT_DELAY_MIN
+        connection_lost = False
+        failed_polls = 0
+
+        def forward(command: str, data):
+            if command not in previous_data or previous_data[command] != data:
+                self._forward_to_listeners(command, data)
+                previous_data[command] = data
 
         while True:
             try:
                 if not self.connected():
                     await self._connect()
 
-                if not self.connected():
-                    logger.debug("Not connected")
-                elif not self.busy():
+                if connection_lost:
+                    logger.info("Connection with %s restored", self.connection)
+                    connection_lost = False
+                    reconnect_delay = _RECONNECT_DELAY_MIN
+
+                if not self.busy():
+                    previous_power_status = previous_data.get(CMD_POWER)
                     if await self.update_power():
-                        if previous_data.get(CMD_POWER) != self.power_status:
-                            self._forward_to_listeners(CMD_POWER, self.power_status)
-                            previous_data[CMD_POWER] = self.power_status
+                        failed_polls = 0
+                        forward(CMD_POWER, self.power_status)
 
                         if self.power_status == self.POWERSTATUS_ON:
+                            if previous_power_status != self.POWERSTATUS_ON:
+                                # Give unsupported commands another chance after power on.
+                                self._unsupported_counts.clear()
+
                             await self.update_volume()
-                            if previous_data.get(CMD_MUTE) != self.muted:
-                                self._forward_to_listeners(CMD_MUTE, self.muted)
-                                previous_data[CMD_MUTE] = self.muted
-                            if previous_data.get(CMD_VOLUME) != self.volume:
-                                self._forward_to_listeners(CMD_VOLUME, self.volume)
-                                previous_data[CMD_VOLUME] = self.volume
+                            forward(CMD_MUTE, self.muted)
+                            forward(CMD_VOLUME, self.volume)
 
                             await self.update_video_source()
-                            if previous_data.get(CMD_SOURCE) != self.video_source:
-                                self._forward_to_listeners(
-                                    CMD_SOURCE, self.video_source
-                                )
-                                previous_data[CMD_SOURCE] = self.video_source
+                            forward(CMD_SOURCE, self.video_source)
 
-                            for command in self._listener_commands:
-                                if command not in [
+                            for command in list(self._listener_commands):
+                                if command in [
                                     CMD_POWER,
                                     CMD_MUTE,
                                     CMD_VOLUME,
                                     CMD_SOURCE,
-                                ]:
-                                    data = await self.send_command(command)
-                                    if (
-                                        data is not None
-                                        and previous_data.get(command) != data
-                                    ):
-                                        self._forward_to_listeners(command, data)
-                                        previous_data[command] = data
+                                ] or not self._poll_command(command):
+                                    continue
+                                data = await self.send_command(command)
+                                if data is not None:
+                                    forward(command, data)
                         else:
                             for command in ["pp", "ltim", "ltim2"]:
                                 if (
                                     command in self._listener_commands
                                     and command not in previous_data
+                                    and self._poll_command(command)
                                 ):
                                     data = await self.send_command(command)
-                                    if (
-                                        data is not None
-                                        and previous_data.get(command) != data
-                                    ):
-                                        self._forward_to_listeners(command, data)
-                                        previous_data[command] = data
-                    elif (
-                        self.power_status == self.POWERSTATUS_UNKNOWN
-                        and previous_data.get(CMD_POWER) != self.power_status
-                    ):
-                        self._forward_to_listeners(CMD_POWER, self.power_status)
-                        previous_data[CMD_POWER] = self.power_status
+                                    if data is not None:
+                                        forward(command, data)
+                    else:
+                        failed_polls += 1
+                        if self.power_status == self.POWERSTATUS_UNKNOWN:
+                            forward(CMD_POWER, self.power_status)
+                        if failed_polls >= _MAX_FAILED_POLLS:
+                            failed_polls = 0
+                            raise BenQConnectionError(
+                                "No valid response, reopening the connection"
+                            )
+
+                if not self.connected():
+                    raise BenQConnectionError("Connection lost")
 
                 await asyncio.sleep(self._interval)
             except asyncio.CancelledError:
                 logger.debug("Read coroutine was canceled")
                 break
-            except (BrokenPipeError, ConnectionResetError, BenQConnectionError):
-                logger.error("Error communicating with BenQ projector")
-                await self._disconnect()
+            # pylint: disable=broad-exception-caught
+            except Exception as ex:
+                if isinstance(ex, (OSError, BenQConnectionError)):
+                    if not connection_lost:
+                        logger.warning(
+                            "Lost connection with %s, will keep retrying: %s",
+                            self.connection,
+                            ex,
+                        )
+                else:
+                    logger.exception(
+                        "Unexpected error while polling %s", self.connection
+                    )
+                connection_lost = True
+
+                try:
+                    await self._disconnect()
+                # pylint: disable=broad-exception-caught
+                except Exception:
+                    logger.debug("Error while closing connection", exc_info=True)
+
+                # Entities become unavailable, and every value is sent again once the
+                # connection is back.
+                self.power_status = self.POWERSTATUS_UNKNOWN
+                previous_data.clear()
+                forward(CMD_POWER, self.power_status)
+
+                try:
+                    await asyncio.sleep(max(reconnect_delay, self._interval or 0))
+                except asyncio.CancelledError:
+                    break
+                reconnect_delay = min(reconnect_delay * 2, _RECONNECT_DELAY_MAX)
 
         self._read_task = None
         logger.debug("Read coroutine stopped")
@@ -501,7 +600,12 @@ class BenQProjector(ABC):
         """
 
         if check_supported and not self.supports_command(command.command):
-            logger.warning("Command %s not supported", command.command)
+            self._log_once(
+                f"not supported {command.command}",
+                logging.WARNING,
+                "Command %s not supported",
+                command.command,
+            )
             return None
 
         if not await self._connect():
@@ -522,12 +626,20 @@ class BenQProjector(ABC):
 
             raw_response = await self._read_raw_response(command)
 
-            return self._parse_response(command, raw_response, lowercase_response)
+            response = self._parse_response(command, raw_response, lowercase_response)
+            self._unsupported_counts.pop(command.command, None)
+            return response
+        except BenQUnsupportedItemError as ex:
+            ex.command = command
+            self._unsupported_counts[command.command] = (
+                self._unsupported_counts.get(command.command, 0) + 1
+            )
+            raise
         except BenQProjectorError as ex:
             ex.command = command
             raise
-        except BenQConnectionError:
-            logger.exception("Problem communicating with %s", self.unique_id)
+        except BenQConnectionError as ex:
+            logger.warning("Problem communicating with %s: %s", self.connection, ex)
             return None
         finally:
             self._connection_lock.release()
@@ -695,17 +807,27 @@ class BenQProjector(ABC):
 
         if lowercase_response in ["*illegal format#", "illegal format"]:
             if not self._interactive:
-                logger.error("Command %s illegal format", command.raw_command)
+                self._log_once(
+                    f"illegal {command.raw_command}",
+                    logging.WARNING,
+                    "Command %s illegal format",
+                    command.raw_command,
+                )
             raise BenQIllegalFormatError(command)
 
         if lowercase_response in ["*unsupported item#", "unsupported item"]:
             if not self._interactive:
-                logger.warning("Command %s unsupported item", command.raw_command)
+                self._log_once(
+                    f"unsupported {command.raw_command}",
+                    logging.INFO,
+                    "Command %s unsupported item",
+                    command.raw_command,
+                )
             raise BenQUnsupportedItemError(command)
 
         if lowercase_response in ["*block item#", "block item"]:
             if not self._interactive:
-                logger.warning("Command %s blocked item", command.raw_command)
+                logger.debug("Command %s blocked item", command.raw_command)
             raise BenQBlockedItemError(command)
 
         if command.action is None:
@@ -713,7 +835,7 @@ class BenQProjector(ABC):
         else:
             matches = RESPONSE_RE_STRICT.match(response)
             if not matches:
-                logger.warning(
+                logger.debug(
                     "Response does not match strict response validation: %s", response
                 )
                 # Continue using loose response validation
@@ -787,7 +909,7 @@ class BenQProjector(ABC):
             ex.command = command
             raise
         except BenQConnectionError:
-            logger.exception("Problem communicating with %s", self.unique_id)
+            logger.warning("Problem communicating with %s", self.connection)
             return None
         finally:
             self._connection_lock.release()
@@ -798,7 +920,18 @@ class BenQProjector(ABC):
         """
         Update the current power state.
         """
-        response = await self.send_command(CMD_POWER)
+        try:
+            response = await self._send_command(BenQCommand(CMD_POWER))
+        except (BenQBlockedItemError, BenQTooBusyError) as ex:
+            logger.debug("Power state not available right now: %s", ex)
+            return self.power_status != self.POWERSTATUS_UNKNOWN
+        except BenQConnectionError:
+            await self.connection.close()
+            response = None
+        except BenQProjectorError as ex:
+            logger.debug("Unable to retrieve power state: %s", ex)
+            response = None
+
         if response is None:
             if self.power_status == self.POWERSTATUS_POWERINGON:
                 logger.debug("Projector still powering on")
@@ -995,6 +1128,9 @@ class BenQProjector(ABC):
         except BenQProjectorError:
             logger.exception("Unable to retrieve projector power state.")
             return False
+        except BenQConnectionError as ex:
+            logger.error("Problem communicating with %s: %s", self.connection, ex)
+            return False
 
         if response == "on":
             # The projector is already on.
@@ -1034,8 +1170,8 @@ class BenQProjector(ABC):
                 logger.exception(
                     "Failed to turn on projector, is projector already powering on or off?"
                 )
-            except BenQProjectorError:
-                pass
+            except (BenQProjectorError, BenQConnectionError) as ex:
+                logger.debug("Error turning on projector: %s", ex)
 
             logger.error("Failed to turn on projector, response: %s", response)
 
@@ -1059,6 +1195,9 @@ class BenQProjector(ABC):
             )
         except BenQProjectorError:
             logger.exception("Unable to retrieve projector power state.")
+            return False
+        except BenQConnectionError as ex:
+            logger.error("Problem communicating with %s: %s", self.connection, ex)
             return False
 
         if response == "off":
@@ -1099,8 +1238,8 @@ class BenQProjector(ABC):
                 logger.exception(
                     "Failed to turn off projector, is projector already powering on or off?"
                 )
-            except BenQProjectorError:
-                pass
+            except (BenQProjectorError, BenQConnectionError) as ex:
+                logger.debug("Error turning off projector: %s", ex)
 
             logger.error("Failed to turn off projector, response: %s", response)
 
@@ -1133,8 +1272,10 @@ class BenQProjector(ABC):
         Increase volume.
         """
         if self.volume is None:
-            self.update_volume()
-        elif self.volume >= 20:  # Can't go higher than 20
+            await self.update_volume()
+        if self.volume is None:
+            return False
+        if self.volume >= 20:  # Can't go higher than 20
             return False
 
         if await self.send_command(CMD_VOLUME, "+") == "+":
@@ -1148,8 +1289,10 @@ class BenQProjector(ABC):
         Decrease volume.
         """
         if self.volume is None:
-            self.update_volume()
-        elif self.volume <= 0:  # Can't go lower than 0
+            await self.update_volume()
+        if self.volume is None:
+            return False
+        if self.volume <= 0:  # Can't go lower than 0
             return False
 
         if await self.send_command(CMD_VOLUME, "-") == "-":
@@ -1176,6 +1319,14 @@ class BenQProjector(ABC):
             except BenQUnsupportedItemError:
                 logger.debug("Need increments to set volume")
                 self._use_volume_increments = True
+            except (BenQProjectorError, BenQConnectionError) as ex:
+                logger.error("Failed to set volume: %s", ex)
+                return False
+
+        if self.volume is None:
+            await self.update_volume()
+        if self.volume is None:
+            return False
 
         while self.volume < level:
             if not await self.volume_up():
@@ -1249,8 +1400,12 @@ class BenQProjectorTelnet(BenQProjectorSerial):
         assert host is not None
         assert port is not None
 
+        connection = BenQTelnetConnection(host, port, record)
+
+        # BenQProjectorSerial.__init__ requires a serial baud rate, initialize the base class.
+        BenQProjector.__init__(self, connection, model_hint)
+
         self.unique_id = f"{host}:{port}"
-
+        # None: detect if the connection uses a prompt (serial to network bridges do,
+        # projectors with a native network interface do not).
         self.has_prompt = has_prompt
-
-        super().__init__(f"socket://{host}:{port}", 0, model_hint, record)
