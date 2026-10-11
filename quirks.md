@@ -6,6 +6,12 @@ During the development of this Python library for BenQ projectors I learned that
 
 Connections using the serial port use a command prompt `>` while connections using the integrated network interface don't use a command prompt.
 
+The **W5700** only answers a bare `<CR>` with the `>` prompt while in standby. When the projector is on a bare `<CR>` gets no response and makes the projector ignore the next command. Commands framed as `<CR>*command#<CR>`, as the specification prescribes, always work. The model config option `"wait_for_prompt": false` enables this framing.
+
+## Power on and off
+
+The **W5700** does not respond at all for about 33 seconds after being turned on and for about 85 to 100 seconds while cooling down after being turned off. It keeps reporting `*POW=ON#` for about 13 seconds after `*pow=off#`.
+
 ## Command echo
 
 Some models don't echo the command, like the **X3000i** which returns an empty line.
