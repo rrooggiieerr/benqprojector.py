@@ -198,7 +198,7 @@ my email address on [my GitHub profile](https://github.com/rrooggiieerr).
 [python-shield]: https://img.shields.io/badge/python-3670A0?style=for-the-badge&logo=python&logoColor=ffdd54
 [releases]: https://github.com/rrooggiieerr/benqprojector.py/releases
 [releases-shield]: https://img.shields.io/github/v/release/rrooggiieerr/benqprojector.py?style=for-the-badge
-[license]: ./LICENSE
+[license]: ./LICENSE.md
 [license-shield]: https://img.shields.io/github/license/rrooggiieerr/benqprojector.py?style=for-the-badge
 [maintainer]: https://github.com/rrooggiieerr
 [maintainer-shield]: https://img.shields.io/badge/MAINTAINER-%40rrooggiieerr-41BDF5?style=for-the-badge
