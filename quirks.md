@@ -35,3 +35,9 @@ The **W2000** returns a different modelname when the projector is turned off the
 The **W1100** `ltim`, `bri`, `con`, `color` and `sharp` command response does include spaces and does not end with `#`. `*LTIM= 1383` returns instead of the expected `*LTIM=1383#`. Similar for the other commands.
 
 the **W1110** uses the `menu_positions` value `cen` to position the menu in the center of the screen, while for the **X3000i** the required value is `center`.
+
+## Prompt lost while the lamp is on
+
+Serial and serial-to-network bridges answer a bare carriage return with `>` while the projector is in standby. On some models, including the **TK700STi** and **W5700**, that prompt never comes back once the lamp is on. `_wait_for_prompt()` then holds the command queue, and later commands such as `*pow=?#` never leave until the connection is reopened.
+
+A refused second-lamp query (`*ltim2=?#`, `Block item` or `Unsupported item`) is a common way into that state on single-lamp models. After one refusal the library stops polling `ltim2`. After a missed prompt on a connection that uses one, the library closes the socket and tries again on the next poll.

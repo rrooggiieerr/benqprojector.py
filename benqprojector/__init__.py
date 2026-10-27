@@ -69,6 +69,10 @@ CMD_SOURCE = "sour"
 ACTION_ON = "on"
 ACTION_OFF = "off"
 
+# A second-lamp query stays refused on single-lamp models. Power and input
+# commands can be blocked only while the lamp is changing state, so those stay polled.
+_REFUSED_POLL_COMMANDS = {"ltim2"}
+
 
 class BenQProjector(ABC):
     """
@@ -169,6 +173,8 @@ class BenQProjector(ABC):
         self._connection_lock = asyncio.Lock()
         self._listeners = []
         self._listener_commands = []
+        self._refused_commands = set()
+        self._poll_pause_until = 0.0
 
     def busy(self):
         """
@@ -488,6 +494,9 @@ class BenQProjector(ABC):
 
         If the list of supported commands is not (yet) set it is assumed the command is supported.
         """
+        if command in self._refused_commands:
+            return False
+
         return self._supported_commands is None or command in self._supported_commands
 
     async def _send_command(
@@ -747,6 +756,9 @@ class BenQProjector(ABC):
         """
         Send a command to the BenQ projector.
         """
+        if time.monotonic() < self._poll_pause_until:
+            return None
+
         response = None
 
         try:
@@ -755,10 +767,49 @@ class BenQProjector(ABC):
             )
         except BenQConnectionError:
             await self.connection.close()
+        except BenQPromptTimeoutError:
+            await self._recover_from_prompt_timeout()
+        except (BenQBlockedItemError, BenQUnsupportedItemError) as ex:
+            self._stop_polling_refused_command(ex)
         except BenQProjectorError:
             pass
 
         return response
+
+    async def _recover_from_prompt_timeout(self) -> None:
+        """
+        A missed ``>`` prompt leaves a serial bridge desynchronised.
+
+        Native network projectors do not use a prompt, so their connection stays open.
+        The next status poll reconnects after one interval.
+        """
+        if self.has_prompt is False:
+            return
+
+        self._has_to_wait_for_prompt = True
+        interval = self._interval or _RESPONSE_TIMEOUT
+        self._poll_pause_until = time.monotonic() + max(interval, _RESPONSE_TIMEOUT)
+        if self.connection is not None:
+            await self.connection.close()
+        logger.warning(
+            "Projector command prompt was not received on %s, "
+            "reconnecting on the next poll",
+            self.connection,
+        )
+
+    def _stop_polling_refused_command(self, ex: BenQProjectorError) -> None:
+        """
+        Stop polling a command the projector keeps refusing.
+        """
+        command = getattr(ex, "command", None)
+        name = getattr(command, "command", None)
+        if name not in _REFUSED_POLL_COMMANDS or name in self._refused_commands:
+            return
+
+        self._refused_commands.add(name)
+        if name in self._listener_commands:
+            self._listener_commands.remove(name)
+        logger.info("Stopped polling %s after the projector refused it", name)
 
     async def send_raw_command(self, raw_command: str) -> str:
         """
