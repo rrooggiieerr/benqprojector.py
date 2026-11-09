@@ -168,6 +168,7 @@ class BenQProjector(ABC):
             # running interactively
             self._interactive = True
 
+        self._blocked_commands = set()
         self._connection_lock = asyncio.Lock()
         self._listeners = []
         self._listener_commands = []
@@ -729,8 +730,11 @@ class BenQProjector(ABC):
             raise BenQUnsupportedItemError(command)
 
         if lowercase_response in ["*block item#", "block item"]:
-            if not self._interactive:
+            # A blocked item is only unavailable in the current state (the W5700 blocks appmod
+            # while on), polling would log it on every update: warn once until it answers again
+            if not self._interactive and command.command not in self._blocked_commands:
                 logger.warning("Command %s blocked item", command.raw_command)
+            self._blocked_commands.add(command.command)
             raise BenQBlockedItemError(command)
 
         if command.action is None:
@@ -762,6 +766,7 @@ class BenQProjector(ABC):
         if lowercase:
             response = response.lower()
 
+        self._blocked_commands.discard(command.command)
         logger.debug("Processed response: %s", response)
 
         return response

@@ -23,6 +23,7 @@ class W5700Emulator(BenQConnection):
     def __init__(self, power="off"):
         super().__init__()
         self.power = power
+        self.appmod_blocked = False
         self.source = "hdmi"
         self._corrupted = False
 
@@ -62,6 +63,9 @@ class W5700Emulator(BenQConnection):
             # The real W5700 answers without * and #
             self._reader.feed_data(f">{command}\r\r\nUnsupported item\r\n".encode())
             return len(data)
+        if key == "appmod" and self.appmod_blocked:
+            self._reader.feed_data(f">{command}\r\r\n*Block item#\r\n".encode())
+            return len(data)
         if key == "pow" and value != "?":
             self.power = value
         elif key == "sour" and value != "?":
@@ -71,6 +75,7 @@ class W5700Emulator(BenQConnection):
             "sour": self.source,
             "modelname": "W5700",
             "macaddr": "00:00:00:00:00:00",
+            "appmod": "cine",
         }
         self._reader.feed_data(
             f">{command}\r\r\n*{key.upper()}={state[key].upper()}#\r\n".encode()
@@ -96,6 +101,25 @@ class Test(unittest.IsolatedAsyncioTestCase):
 
         self.assertTrue(await projector.turn_off())
         self.assertEqual(projector.POWERSTATUS_POWERINGOFF, projector.power_status)
+
+    async def test_w5700_blocked_item_warns_once(self):
+        projector = BenQProjector(W5700Emulator(power="on"), "W5700")
+        projector.has_prompt = True
+        self.assertTrue(await projector.connect())
+        projector.connection.appmod_blocked = True
+
+        def blocked_warnings(logs):
+            return [r for r in logs.records if "blocked item" in r.getMessage()]
+
+        with self.assertLogs("benqprojector", "WARNING") as logs:
+            self.assertIsNone(await projector.send_command("appmod"))
+            self.assertIsNone(await projector.send_command("appmod"))
+            # Answering again re-arms the warning
+            projector.connection.appmod_blocked = False
+            self.assertEqual("cine", await projector.send_command("appmod"))
+            projector.connection.appmod_blocked = True
+            self.assertIsNone(await projector.send_command("appmod"))
+        self.assertEqual(2, len(blocked_warnings(logs)))
 
     async def test_w5700_off_then_on(self):
         projector = BenQProjector(W5700Emulator(power="off"), "W5700")
