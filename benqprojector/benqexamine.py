@@ -1,5 +1,4 @@
-"""
-Implements the BenQProjector examine class.
+"""Implements the BenQProjector examine class.
 
 Created on 23 Jan 2025
 
@@ -8,11 +7,12 @@ Created on 23 Jan 2025
 
 import asyncio
 import logging
+from typing import Any
 
-from .benqclasses import BenQCommand
-from .benqprojector import (
+from . import BenQProjector
+from .benqclasses import (
     BenQBlockedItemError,
-    BenQProjector,
+    BenQCommand,
     BenQProjectorError,
     BenQResponseTimeoutError,
 )
@@ -21,9 +21,7 @@ logger = logging.getLogger(__name__)
 
 
 class BenQProjectorExamine:
-    """
-    BenQProjectorExamine class for detecting BenQ projector features.
-    """
+    """BenQProjectorExamine class for detecting BenQ projector features."""
 
     _projector: BenQProjector
 
@@ -42,18 +40,17 @@ class BenQProjectorExamine:
         self,
         projector: BenQProjector,
     ):
+        """Initialise the examine object for the given projector."""
         assert projector is not None
 
         self._projector = projector
 
-    async def detect_commands(self):
-        """
-        Detects which command are supported by the projector.
+    async def detect_commands(self) -> list[str]:
+        """Detects which command are supported by the projector.
 
         This is done by trying out all know commands.
         """
-        # pylint: disable=protected-access
-        if self._projector._interactive:
+        if self._projector._interactive:  # noqa: SLF001
             print("Supported commands:", end="", flush=True)
         else:
             logger.info("Detecting supported commands")
@@ -76,7 +73,7 @@ class BenQProjectorExamine:
             "error",
         ]
         # Loop through all known commands and test if a response is given.
-        for command in self._projector.projector_config_all.get("commands"):
+        for command in self._projector.projector_config_all.get("commands", []):
             if command in ignore_commands:
                 continue
 
@@ -84,28 +81,27 @@ class BenQProjectorExamine:
             while True:
                 try:
                     try:
-                        response = await self._projector._send_command(
+                        response = await self._projector._send_command(  # noqa: SLF001
                             BenQCommand(command)
                         )
                         if response is not None:
                             supported_commands.append(command)
                         else:
-                            command = None
+                            command = None  # noqa: PLW2901
                     except BenQBlockedItemError:
                         supported_commands.append(command)
-                        command = f"{command}?"
+                        command = f"{command}?"  # noqa: PLW2901
                     except BenQResponseTimeoutError:
                         if retries < 2:
                             retries += 1
                             continue
 
                         supported_commands.append(command)
-                        command = f"{command}¿"
+                        command = f"{command}¿"  # noqa: PLW2901
 
                     if command:
                         # A response is given, the command is supported.
-                        # pylint: disable=protected-access
-                        if self._projector._interactive:
+                        if self._projector._interactive:  # noqa: SLF001
                             print(f" {command}", end="", flush=True)
                         else:
                             logger.info("Command %s supported", command)
@@ -118,61 +114,59 @@ class BenQProjectorExamine:
         # Set the list of known commands.
         self._supported_commands = supported_commands
 
-        # pylint: disable=protected-access
-        if self._projector._interactive:
+        if self._projector._interactive:  # noqa: SLF001
             print()
 
         return self._supported_commands
 
-    async def _detect_modes(self, description, command, all_modes):
-        """
-        Detect which modes are supported by the projector.
+    async def _detect_modes(
+        self, description: str, command: str, all_modes: list[str] | None
+    ) -> list[str]:
+        """Detect which modes are supported by the projector.
 
         This is done by trying out all know modes.
         """
-        if not self._projector.supports_command(command):
+        if not all_modes or not self._projector.supports_command(command):
             return []
 
-        # pylint: disable=protected-access
-        if self._projector._interactive:
+        if self._projector._interactive:  # noqa: SLF001
             print(f"Supported {description}:", end="", flush=True)
         else:
             logger.info("Detecting supported video sources")
 
         # Store current mode
         current_mode = await self._projector.send_command(command)
-        # pylint: disable=protected-access
-        if not self._projector._interactive:
+        if not self._projector._interactive:  # noqa: SLF001
             logger.info("Current %s: %s", description, current_mode)
         if current_mode is None:
             return []
 
-        supported_modes = []
+        supported_modes: list[str] = []
         # Loop through all known modes and test if a response is given.
         for mode in all_modes:
+            label: str | None = mode
             try:
                 try:
-                    response = await self._projector._send_command(
+                    response = await self._projector._send_command(  # noqa: SLF001
                         BenQCommand(command, mode)
                     )
                     if response is not None:
                         supported_modes.append(mode)
                     else:
-                        mode = None
+                        label = None
                 except BenQBlockedItemError:
                     supported_modes.append(mode)
-                    mode = f"{mode}?"
+                    label = f"{mode}?"
                 except BenQResponseTimeoutError:
                     supported_modes.append(mode)
-                    mode = f"{mode}¿"
+                    label = f"{mode}¿"
 
-                if mode:
+                if label:
                     # A response is given, the mode is supported.
-                    # pylint: disable=protected-access
-                    if self._projector._interactive:
-                        print(f" {mode}", end="", flush=True)
+                    if self._projector._interactive:  # noqa: SLF001
+                        print(f" {label}", end="", flush=True)
                     else:
-                        logger.debug("Mode %s supported", mode)
+                        logger.debug("Mode %s supported", label)
             except BenQProjectorError:
                 pass
             finally:
@@ -182,16 +176,13 @@ class BenQProjectorExamine:
         # Revert mode back to current mode
         await self._projector.send_command(command, current_mode)
 
-        # pylint: disable=protected-access
-        if self._projector._interactive:
+        if self._projector._interactive:  # noqa: SLF001
             print()
 
         return supported_modes
 
-    async def detect_video_sources(self):
-        """
-        Detect which video sources are supported by the projector.
-        """
+    async def detect_video_sources(self) -> list[str]:
+        """Detect which video sources are supported by the projector."""
         self.video_sources = await self._detect_modes(
             "video sources",
             "sour",
@@ -199,10 +190,8 @@ class BenQProjectorExamine:
         )
         return self.video_sources
 
-    async def detect_audio_sources(self):
-        """
-        Detect which audio sources are supported by the projector.
-        """
+    async def detect_audio_sources(self) -> list[str]:
+        """Detect which audio sources are supported by the projector."""
         self.audio_sources = await self._detect_modes(
             "audio sources",
             "audiosour",
@@ -210,10 +199,8 @@ class BenQProjectorExamine:
         )
         return self.audio_sources
 
-    async def detect_picture_modes(self):
-        """
-        Detect which picture modes are supported by the projector.
-        """
+    async def detect_picture_modes(self) -> list[str]:
+        """Detect which picture modes are supported by the projector."""
         self.picture_modes = await self._detect_modes(
             "picture modes",
             "appmod",
@@ -221,10 +208,8 @@ class BenQProjectorExamine:
         )
         return self.picture_modes
 
-    async def detect_color_temperatures(self):
-        """
-        Detect which color temperatures are supported by the projector.
-        """
+    async def detect_color_temperatures(self) -> list[str]:
+        """Detect which color temperatures are supported by the projector."""
         self.color_temperatures = await self._detect_modes(
             "color temperatures",
             "ct",
@@ -232,10 +217,8 @@ class BenQProjectorExamine:
         )
         return self.color_temperatures
 
-    async def detect_aspect_ratios(self):
-        """
-        Detect which aspect ratios are supported by the projector.
-        """
+    async def detect_aspect_ratios(self) -> list[str]:
+        """Detect which aspect ratios are supported by the projector."""
         self.aspect_ratios = await self._detect_modes(
             "aspect ratios",
             "asp",
@@ -243,10 +226,8 @@ class BenQProjectorExamine:
         )
         return self.aspect_ratios
 
-    async def detect_projector_positions(self):
-        """
-        Detect which projector positions are supported by the projector.
-        """
+    async def detect_projector_positions(self) -> list[str]:
+        """Detect which projector positions are supported by the projector."""
         self.projector_positions = await self._detect_modes(
             "projector positions",
             "pp",
@@ -254,10 +235,8 @@ class BenQProjectorExamine:
         )
         return self.projector_positions
 
-    async def detect_lamp_modes(self):
-        """
-        Detect which lamp modes are supported by the projector.
-        """
+    async def detect_lamp_modes(self) -> list[str]:
+        """Detect which lamp modes are supported by the projector."""
         self.lamp_modes = await self._detect_modes(
             "lamp modes",
             "lampm",
@@ -265,19 +244,15 @@ class BenQProjectorExamine:
         )
         return self.lamp_modes
 
-    async def detect_3d_modes(self):
-        """
-        Detect which 3d modes are supported by the projector.
-        """
+    async def detect_3d_modes(self) -> list[str]:
+        """Detect which 3d modes are supported by the projector."""
         self.threed_modes = await self._detect_modes(
             "3d modes", "3d", self._projector.projector_config_all.get("3d_modes")
         )
         return self.threed_modes
 
-    async def detect_menu_positions(self):
-        """
-        Detect which menu positions are supported by the projector.
-        """
+    async def detect_menu_positions(self) -> list[str]:
+        """Detect which menu positions are supported by the projector."""
         self.menu_positions = await self._detect_modes(
             "menu positions",
             "menuposition",
@@ -285,15 +260,13 @@ class BenQProjectorExamine:
         )
         return self.menu_positions
 
-    async def detect_projector_features(self) -> {}:
-        """
-        Detect which features are supported by the projector.
-        """
+    async def detect_projector_features(self) -> dict[str, Any] | None:
+        """Detect which features are supported by the projector."""
         if self._projector.power_status == BenQProjector.POWERSTATUS_OFF:
             logger.error("Projector needs to be on to examine it's features.")
             return None
 
-        config = {}
+        config: dict[str, Any] = {}
 
         config["commands"] = await self.detect_commands()
         await asyncio.sleep(2)  # Give the projector some time to settle

@@ -1,11 +1,11 @@
-"""
-Created on 27 Nov 2022
+"""Created on 27 Nov 2022.
 
 @author: Rogier van Staveren
 """
 
 import argparse
 import asyncio
+import contextlib
 import json
 import logging
 import sys
@@ -25,11 +25,12 @@ from .benqexamine import BenQProjectorExamine
 _LOGGER = logging.getLogger(__name__)
 
 
-def _listener(command: str, data: Any):
+def _listener(command: str, data: Any) -> None:
     _LOGGER.info("%s %s", command, data)
 
 
-async def main(projector: BenQProjector, action: str):
+async def main(projector: BenQProjector, action: str) -> None:
+    """Connect to the projector and perform the given action."""
     if not await projector.connect(interval=1):
         sys.exit(1)
 
@@ -80,11 +81,12 @@ async def main(projector: BenQProjector, action: str):
         elif action == "monitor":
             projector.add_listener(_listener)
 
-            for command in projector._supported_commands:
-                projector.add_listener(command=command)
+            if projector.supported_commands:
+                for command in projector.supported_commands:
+                    projector.add_listener(command=command)
 
-            while True:
-                await asyncio.sleep(1)
+            # Keep monitoring until interrupted
+            await asyncio.Event().wait()
         elif action == "examine":
             _LOGGER.info("Model: %s", projector.model)
             if projector.power_status == projector.POWERSTATUS_OFF:
@@ -96,8 +98,8 @@ async def main(projector: BenQProjector, action: str):
 
             _LOGGER.info("Projector configuration JSON:")
             _LOGGER.info(json.dumps(config, indent="\t"))
-    except SerialException as e:
-        _LOGGER.error("Failed to connect to BenQ projector, reason: %s", e)
+    except SerialException:
+        _LOGGER.exception("Failed to connect to BenQ projector")
         sys.exit(1)
     finally:
         _LOGGER.info("Disconnecting from BenQ projector")
@@ -135,16 +137,18 @@ if __name__ == "__main__":
     else:
         logging.basicConfig(format="%(message)s", level=logging.INFO)
 
-    projector = None
+    benq_projector = None
     if "serial_port" in args:
-        projector = BenQProjectorSerial(args.serial_port, args.baud, record=args.record)
+        benq_projector = BenQProjectorSerial(
+            args.serial_port, args.baud, record=args.record
+        )
     elif "host" in args:
-        projector = BenQProjectorTelnet(args.host, args.port, record=args.record)
+        benq_projector = BenQProjectorTelnet(args.host, args.port, record=args.record)
 
-    try:
-        asyncio.run(main(projector, args.action))
-    except KeyboardInterrupt:
-        # Handle keyboard interrupt
-        pass
+    if not benq_projector:
+        sys.exit(1)
+
+    with contextlib.suppress(KeyboardInterrupt):
+        asyncio.run(main(benq_projector, args.action))
 
     sys.exit(0)

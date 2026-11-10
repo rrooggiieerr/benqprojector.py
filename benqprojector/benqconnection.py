@@ -1,16 +1,15 @@
-"""
-Implements the connection types for connecting to BenQ projectors.
+"""Implements the connection types for connecting to BenQ projectors.
 
 Created on 25 Aug 2023
 
 @author: Rogier van Staveren
 """
 
+from abc import ABC, abstractmethod
 import asyncio
 import logging
-import socket
 import time
-from abc import ABC, abstractmethod
+from typing import Any
 
 import aiofiles
 import serialx
@@ -26,63 +25,55 @@ DEFAULT_PORT = 8000
 
 
 class BenQConnectionError(Exception):
-    """
-    BenQ Connection Error.
+    """BenQ Connection Error.
 
     When an error occurs while connecting to the BenQ Projector.
     """
 
 
 class BenQConnectionTimeoutError(BenQConnectionError):
-    """
-    BenQ Connection Timeout Error.
-    """
+    """BenQ Connection Timeout Error."""
 
 
 class BenQConnection(ABC):
-    """
-    Abstract class on which the different connection types are build.
-    """
+    """Abstract class on which the different connection types are build."""
 
-    _reader: asyncio.StreamReader = None
-    _writer: asyncio.StreamWriter = None
-    _read_timeout = None
-    _record_file = None
+    _reader: asyncio.StreamReader | None = None
+    _writer: asyncio.StreamWriter | None = None
+    _read_timeout: float | None = None
+    _record_file: Any = None
 
     def __init__(self, record: bool = False):
+        """Initialise a connection to the BenQ projector."""
         super().__init__()
 
         self._record = record
 
     @abstractmethod
     async def open(self) -> bool:
-        """
-        Opens the connection to the BenQ projector.
-        """
+        """Opens the connection to the BenQ projector."""
         if self._record:
             file_name = time.strftime("%Y%m%d-%H%M%S.txt")
             self._record_file = await aiofiles.open(file_name, "wb")
 
-    def is_open(self):
-        """
-        Checks if the connection is open.
-        """
+        return True
+
+    def is_open(self) -> bool:
+        """Checks if the connection is open."""
         return self._writer is not None
 
     async def close(self) -> bool:
-        """
-        Closes the connection to the BenQ projector.
-        """
+        """Closes the connection to the BenQ projector."""
         if self._record_file:
             await self._record_file.close()
 
-        if not self.is_open():
+        if self._writer is None:
             return True
 
         try:
             self._writer.close()
             await self._writer.wait_closed()
-        except (OSError, serialx.SerialException):
+        except OSError, serialx.SerialException:
             pass
 
         self._reader = None
@@ -96,17 +87,15 @@ class BenQConnection(ABC):
         return False
 
     async def reset(self) -> bool:
-        """
-        Resets the reader and drains the writer of the connection.
-        """
+        """Resets the reader and drains the writer of the connection."""
         await self.read(-1)
+        assert self._writer is not None, "Connection is not open"
         await self._writer.drain()
         return True
 
     async def read(self, size: int = 1) -> bytes:
-        """
-        Read size bytes from the connection.
-        """
+        """Read size bytes from the connection."""
+        assert self._reader is not None, "Connection is not open"
         if self._reader.at_eof():
             return b""
 
@@ -117,20 +106,19 @@ class BenQConnection(ABC):
 
             if self._record_file:
                 await self._record_file.write(response)
-
-            return response
         except asyncio.exceptions.TimeoutError:
             return b""
         except (OSError, serialx.SerialException) as ex:
             await self.close()
-            raise BenQConnectionError(ex.strerror) from ex
+            raise BenQConnectionError(str(ex)) from ex
+        else:
+            return response
 
         return b""
 
     async def readline(self) -> bytes:
-        """
-        Reads a line from the connection.
-        """
+        """Reads a line from the connection."""
+        assert self._reader is not None, "Connection is not open"
         if self._reader.at_eof():
             return b""
 
@@ -141,20 +129,19 @@ class BenQConnection(ABC):
 
             if self._record_file:
                 await self._record_file.write(response)
-
-            return response
         except asyncio.exceptions.TimeoutError:
             return b""
         except (OSError, serialx.SerialException) as ex:
             await self.close()
-            raise BenQConnectionError(ex.strerror) from ex
+            raise BenQConnectionError(str(ex)) from ex
+        else:
+            return response
 
         return b""
 
-    async def readuntil(self, separator=b"\n"):
-        """
-        Read data until separator is found.
-        """
+    async def readuntil(self, separator: bytes = b"\n") -> bytes:
+        """Read data until separator is found."""
+        assert self._reader is not None, "Connection is not open"
         if self._reader.at_eof():
             return b""
 
@@ -165,8 +152,6 @@ class BenQConnection(ABC):
 
             if self._record_file:
                 await self._record_file.write(response)
-
-            return response
         except asyncio.exceptions.TimeoutError:
             return b""
         except asyncio.IncompleteReadError as ex:
@@ -176,14 +161,15 @@ class BenQConnection(ABC):
             return b""
         except (OSError, serialx.SerialException) as ex:
             await self.close()
-            raise BenQConnectionError(ex.strerror) from ex
+            raise BenQConnectionError(str(ex)) from ex
+        else:
+            return response
 
         return b""
 
     async def write(self, data: bytes) -> int:
-        """
-        Output the given string over the connection.
-        """
+        """Output the given string over the connection."""
+        assert self._writer is not None, "Connection is not open"
         try:
             self._writer.write(data)
             await self._writer.drain()
@@ -191,23 +177,22 @@ class BenQConnection(ABC):
             return len(data)
         except (OSError, serialx.SerialException) as ex:
             await self.close()
-            raise BenQConnectionError(ex.strerror) from ex
+            raise BenQConnectionError(str(ex)) from ex
 
-    async def flush(self) -> None:
+    async def flush(self) -> None:  # noqa: B027
+        """Flush write buffers, if applicable.
+
+        Intentionally a no-op by default, subclasses can override this.
         """
-        Flush write buffers, if applicable.
-        """
-        # await self.read(-1)
 
 
 class BenQSerialConnection(BenQConnection):
-    """
-    Class to handle the serial connection type.
-    """
+    """Class to handle the serial connection type."""
 
     _read_timeout = _SERIAL_TIMEOUT
 
     def __init__(self, path: str, baud_rate: int, record: bool = False):
+        """Initialise a serial connection to the BenQ projector."""
         super().__init__(record)
         assert path is not None
 
@@ -219,10 +204,12 @@ class BenQSerialConnection(BenQConnection):
         ):
             self._read_timeout = _TELNET_TIMEOUT
 
-    def __str__(self):
+    def __str__(self) -> str:
+        """Return the path of the connection."""
         return self._path
 
     async def open(self) -> bool:
+        """Open the connection."""
         await super().open()
 
         try:
@@ -238,22 +225,21 @@ class BenQSerialConnection(BenQConnection):
                     stopbits=StopBits.ONE,
                     timeout=1,
                 )
-
-            return True
         except (OSError, serialx.SerialException, serialx.UnsupportedSetting) as ex:
             raise BenQConnectionError(str(ex)) from ex
+        else:
+            return True
 
         return False
 
 
 class BenQTelnetConnection(BenQSerialConnection):
-    """
-    Class to handle the telnet connection type.
-    """
+    """Class to handle the telnet connection type."""
 
     _read_timeout = _TELNET_TIMEOUT
 
     def __init__(self, host: str, port: int = DEFAULT_PORT, record: bool = False):
+        """Initialise a telnet connection to the BenQ projector."""
         assert host is not None
         assert port is not None
 
