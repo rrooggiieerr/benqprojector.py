@@ -52,9 +52,9 @@ class BenQConnection(ABC):
     @abstractmethod
     async def open(self) -> bool:
         """Opens the connection to the BenQ projector."""
-        if self._record:
+        if self._record and self._record_file is None:
             file_name = time.strftime("%Y%m%d-%H%M%S.txt")
-            self._record_file = await aiofiles.open(file_name, "wb")
+            self._record_file = await aiofiles.open(file_name, "ab")
 
         return True
 
@@ -64,8 +64,9 @@ class BenQConnection(ABC):
 
     async def close(self) -> bool:
         """Closes the connection to the BenQ projector."""
-        if self._record_file:
+        if self._record_file is not None:
             await self._record_file.close()
+            self._record_file = None
 
         if self._writer is None:
             return True
@@ -157,6 +158,8 @@ class BenQConnection(ABC):
         except asyncio.IncompleteReadError as ex:
             logger.exception("Incomplete read")
             if ex.partial is not None:
+                if self._record_file:
+                    await self._record_file.write(ex.partial)
                 return ex.partial
             return b""
         except (OSError, serialx.SerialException) as ex:
@@ -210,8 +213,6 @@ class BenQSerialConnection(BenQConnection):
 
     async def open(self) -> bool:
         """Open the connection."""
-        await super().open()
-
         try:
             if not self.is_open():
                 (
@@ -227,10 +228,8 @@ class BenQSerialConnection(BenQConnection):
                 )
         except (OSError, serialx.SerialException, serialx.UnsupportedSetting) as ex:
             raise BenQConnectionError(str(ex)) from ex
-        else:
-            return True
 
-        return False
+        return await super().open()
 
 
 class BenQTelnetConnection(BenQSerialConnection):

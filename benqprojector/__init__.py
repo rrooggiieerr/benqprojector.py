@@ -83,7 +83,6 @@ class BenQProjector(ABC):
     _use_volume_increments = False
 
     _read_task: asyncio.Task[None] | None = None
-    _loop: asyncio.AbstractEventLoop | None = None
     _listeners: list[Callable[[str, Any], Any]]
     _listener_commands: list[str]
     _interval: float | None = None
@@ -218,17 +217,9 @@ class BenQProjector(ABC):
 
         return self.connected()
 
-    async def connect(
-        self,
-        loop: asyncio.AbstractEventLoop | None = None,
-        interval: float | None = None,
-    ) -> bool:
+    async def connect(self, interval: float | None = None) -> bool:
         """Connect to the BenQ projector."""
         assert interval is None or interval > 0
-
-        self._loop = loop
-        if self._loop is None:
-            self._loop = asyncio.get_event_loop()
 
         try:
             if not await self._connect():
@@ -274,7 +265,8 @@ class BenQProjector(ABC):
             model = await self._send_command(
                 BenQCommand(CMD_MODELNAME), lowercase_response=False
             )
-            assert model is not None, "Failed to retrieve projector model"
+            if model is None:
+                logger.error("Failed to retrieve projector model")
         except BenQIllegalFormatError:
             # W1000 does not seem to return projector model, but gives an illegal
             # format error. Maybe there are other models with the same problem?
@@ -293,6 +285,9 @@ class BenQProjector(ABC):
                     "Unable to retrieve projector model while projector is %s, is projector powering down?",
                     power,
                 )
+        except BenQProjectorError:
+            # Not knowing the model is not fatal, continue with the generic config
+            logger.exception("Unable to retrieve projector model")
 
         if (
             model is not None
@@ -337,13 +332,7 @@ class BenQProjector(ABC):
         self._init = False
         self._interval = interval
 
-        if (
-            self._read_task is None
-            and len(self._listeners) > 0
-            and self._interval is not None
-        ):
-            self._read_task = asyncio.create_task(self._read_coroutine())
-            save_task_reference(self._read_task)
+        self._start_read_task()
 
         return True
 
@@ -356,8 +345,11 @@ class BenQProjector(ABC):
 
     async def disconnect(self) -> bool:
         """Disconnect from the BenQ projector."""
+        # Always stop polling, also when the connection is already lost. Otherwise the
+        # read coroutine would reconnect after the disconnect was requested.
+        await self._cancel_read()
+
         if self.connected():
-            await self._cancel_read()
             await self._disconnect()
 
         return not self.connected()
@@ -373,10 +365,7 @@ class BenQProjector(ABC):
 
         if listener is not None:
             self._listeners.append(listener)
-
-            if self._read_task is None and self._interval is not None:
-                self._read_task = asyncio.create_task(self._read_coroutine())
-                save_task_reference(self._read_task)
+            self._start_read_task()
 
     def _forward_to_listeners(self, command: str, data: Any | None) -> None:
         for listener in self._listeners:
@@ -385,13 +374,31 @@ class BenQProjector(ABC):
             except Exception:
                 logger.exception("Exception in listener: %s", listener)
 
-    async def _cancel_read(self) -> bool:
-        if self._read_task is not None and not (
-            self._read_task.done() or self._read_task.cancelled()
-        ):
-            return self._read_task.cancel()
+    def _start_read_task(self) -> None:
+        """Start the read coroutine if there are listeners and it's not running."""
+        if self._interval is None or not self._listeners:
+            return
 
-        return True
+        # A finished task is replaced, so polling can be restarted after it stopped
+        if self._read_task is not None and not self._read_task.done():
+            return
+
+        self._read_task = asyncio.create_task(self._read_coroutine())
+        save_task_reference(self._read_task)
+
+    async def _cancel_read(self) -> None:
+        """Stop the read coroutine and wait for it to finish."""
+        task = self._read_task
+        self._read_task = None
+
+        if task is None or task.done():
+            return
+
+        task.cancel()
+        # Can't wait for ourself when called from within the read coroutine
+        if task is not asyncio.current_task():
+            with contextlib.suppress(asyncio.CancelledError):
+                await task
 
     def _forward_if_changed(
         self, previous_data: dict[str, Any], command: str, value: Any
@@ -441,26 +448,31 @@ class BenQProjector(ABC):
         assert self._interval is not None
         previous_data: dict[str, Any] = {}
 
-        while True:
-            try:
-                if not self.connected():
-                    await self._connect()
+        try:
+            while True:
+                try:
+                    if not self.connected():
+                        await self._connect()
 
-                if not self.connected():
-                    logger.debug("Not connected")
-                elif not self.busy():
-                    await self._poll_states(previous_data)
+                    if not self.connected():
+                        logger.debug("Not connected")
+                    elif not self.busy():
+                        await self._poll_states(previous_data)
+                except BrokenPipeError, ConnectionResetError, BenQConnectionError:
+                    logger.exception("Error communicating with BenQ projector")
+                    await self._disconnect()
+                except Exception:
+                    # Keep polling, an unexpected error should not silently stop the
+                    # updates to the listeners
+                    logger.exception("Unexpected error while reading projector state")
 
                 await asyncio.sleep(self._interval)
-            except asyncio.CancelledError:
-                logger.debug("Read coroutine was canceled")
-                break
-            except BrokenPipeError, ConnectionResetError, BenQConnectionError:
-                logger.exception("Error communicating with BenQ projector")
-                await self._disconnect()
-
-        self._read_task = None
-        logger.debug("Read coroutine stopped")
+        except asyncio.CancelledError:
+            logger.debug("Read coroutine was canceled")
+        finally:
+            if self._read_task is asyncio.current_task():
+                self._read_task = None
+            logger.debug("Read coroutine stopped")
 
     @property
     def supported_commands(self) -> list[str] | None:
@@ -745,6 +757,10 @@ class BenQProjector(ABC):
         """Send a raw command to the BenQ projector."""
         command = BenQRawCommand(raw_command)
 
+        if not await self._connect():
+            logger.error("Connection not available")
+            return None
+
         try:
             locked = await asyncio.wait_for(
                 self._connection_lock.acquire(), timeout=_CONNECTION_LOCK_TIMEOUT
@@ -888,19 +904,31 @@ class BenQProjector(ABC):
         if self.supports_command("bri"):
             response = await self.send_command("bri")
             if response is not None:
-                self.brightness = int(response)
+                try:
+                    self.brightness = int(response)
+                except ValueError:
+                    logger.warning("Invalid brightness: %s", response)
+                    self.brightness = None
                 logger.debug("Brightness: %s", self.brightness)
 
         if self.supports_command("color"):
             response = await self.send_command("color")
             if response is not None:
-                self.color_value = int(response)
+                try:
+                    self.color_value = int(response)
+                except ValueError:
+                    logger.warning("Invalid color value: %s", response)
+                    self.color_value = None
                 logger.debug("Color value: %s", self.color_value)
 
         if self.supports_command("con"):
             response = await self.send_command("con")
             if response is not None:
-                self.contrast = int(response)
+                try:
+                    self.contrast = int(response)
+                except ValueError:
+                    logger.warning("Invalid contrast: %s", response)
+                    self.contrast = None
                 logger.debug("Contrast: %s", self.contrast)
 
         if self.supports_command("ct"):
@@ -941,12 +969,20 @@ class BenQProjector(ABC):
         if self.supports_command("ltim"):
             response = await self.send_command("ltim")
             if response is not None:
-                self.lamp_time = int(response)
+                try:
+                    self.lamp_time = int(response)
+                except ValueError:
+                    logger.warning("Invalid lamp time: %s", response)
+                    self.lamp_time = None
 
         if self.supports_command("ltim2"):
             response = await self.send_command("ltim2")
             if response is not None:
-                self.lamp2_time = int(response)
+                try:
+                    self.lamp2_time = int(response)
+                except ValueError:
+                    logger.warning("Invalid lamp 2 time: %s", response)
+                    self.lamp2_time = None
 
         if self.power_status in [
             self.POWERSTATUS_OFF,
@@ -1130,6 +1166,10 @@ class BenQProjector(ABC):
 
     async def volume_level(self, level: int) -> bool:
         """Set volume to a given level."""
+        if not 0 <= level <= 20:  # Volume ranges from 0 to 20
+            logger.error("Invalid volume level %s, must be between 0 and 20", level)
+            return False
+
         if self.volume == level:
             return True
 
@@ -1140,6 +1180,7 @@ class BenQProjector(ABC):
                     level
                 ):
                     logger.debug("Successfully set volume without increments")
+                    self.volume = level
                     return True
             except BenQUnsupportedItemError:
                 logger.debug("Need increments to set volume")
@@ -1213,8 +1254,8 @@ class BenQProjectorTelnet(BenQProjectorSerial):
         assert host is not None
         assert port is not None
 
-        self.unique_id = f"{host}:{port}"
-
         self.has_prompt = has_prompt
 
-        super().__init__(f"socket://{host}:{port}", 0, model_hint, record)
+        super().__init__(f"socket://{host}:{port}", BAUD_RATES[0], model_hint, record)
+
+        self.unique_id = f"{host}:{port}"
