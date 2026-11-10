@@ -43,7 +43,6 @@ from .benqconnection import (
     BenQConnectionError,
     BenQSerialConnection,
 )
-from .task_helper import save_task_reference
 
 logger = logging.getLogger(__name__)
 
@@ -384,7 +383,6 @@ class BenQProjector(ABC):
             return
 
         self._read_task = asyncio.create_task(self._read_coroutine())
-        save_task_reference(self._read_task)
 
     async def _cancel_read(self) -> None:
         """Stop the read coroutine and wait for it to finish."""
