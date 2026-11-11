@@ -38,32 +38,31 @@
 		"vkeystone",
 		"vol"
 	],
-	"video_sources": [
-		"hdmi",
-		"hdmi2"
-	],
-	"audio_sources": [],
-	"picture_modes": [],
-	"color_temperatures": [],
+	"3d_modes": [],
 	"aspect_ratios": [],
-	"projector_positions": [
-		"ft",
-		"re",
-		"rc",
-		"fc"
-	],
+	"audio_sources": [],
+	"color_temperatures": [],
 	"lamp_modes": [
 		"lnor",
 		"eco",
 		"seco"
 	],
-	"3d_modes": [],
 	"menu_positions": [
 		"center",
 		"tl",
 		"tr",
 		"br",
 		"bl"
+	],
+	"picture_modes": [],
+	"projector_positions": [
+		"ft",
+		"re",
+		"rc",
+		"fc"
+	],
+	"video_sources": [
+		"hdmi",
+		"hdmi2"
 	]
 }
-

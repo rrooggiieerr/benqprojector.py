@@ -9,5 +9,17 @@ module.exports = {
         jsonSortOrder: JSON.stringify({ [/.*/]: "numeric" }),
       },
     },
+    {
+      files: ["benqprojector/configs/*.json"],
+      options: {
+        useTabs: true,
+        printWidth: 1,
+        // commands should stay at the top
+        jsonSortOrder: JSON.stringify({
+          commands: null,
+          [/.*/]: "numeric",
+        }),
+      },
+    },
   ],
 };

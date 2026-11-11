@@ -2,15 +2,15 @@
 	"commands": [
 		"pow"
 	],
-	"video_sources": [],
-	"audio_sources": [],
-	"picture_modes": [],
-	"color_temperatures": [],
-	"aspect_ratios": [],
-	"projector_positions": [],
-	"menu_positions": [],
-	"lamp_modes": [],
 	"3d_modes": [],
+	"aspect_ratios": [],
+	"audio_sources": [],
+	"color_temperatures": [],
+	"lamp_modes": [],
+	"menu_positions": [],
+	"picture_modes": [],
+	"poweroff_time": 100,
 	"poweron_time": 100,
-	"poweroff_time": 100
+	"projector_positions": [],
+	"video_sources": []
 }

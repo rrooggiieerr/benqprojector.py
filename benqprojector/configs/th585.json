@@ -38,47 +38,6 @@
 		"vkeystone",
 		"vol"
 	],
-	"video_sources": [
-		"hdmi",
-		"hdmi2",
-		"rgb"
-	],
-	"audio_sources": [],
-	"picture_modes": [
-		"bright",
-		"livingroom",
-		"game",
-		"cine",
-		"football",
-		"user1",
-		"user2",
-		"threed"
-	],
-	"color_temperatures": [
-		"warm",
-		"normal",
-		"cool",
-		"native"
-	],
-	"aspect_ratios": [
-		"4:3",
-		"16:9",
-		"16:10",
-		"auto",
-		"real"
-	],
-	"projector_positions": [
-		"ft",
-		"re",
-		"rc",
-		"fc"
-	],
-	"lamp_modes": [
-		"lnor",
-		"eco",
-		"seco",
-		"seco2"
-	],
 	"3d_modes": [
 		"off",
 		"auto",
@@ -89,11 +48,52 @@
 		"da",
 		"iv"
 	],
+	"aspect_ratios": [
+		"4:3",
+		"16:9",
+		"16:10",
+		"auto",
+		"real"
+	],
+	"audio_sources": [],
+	"color_temperatures": [
+		"warm",
+		"normal",
+		"cool",
+		"native"
+	],
+	"lamp_modes": [
+		"lnor",
+		"eco",
+		"seco",
+		"seco2"
+	],
 	"menu_positions": [
 		"center",
 		"tl",
 		"tr",
 		"br",
 		"bl"
+	],
+	"picture_modes": [
+		"bright",
+		"livingroom",
+		"game",
+		"cine",
+		"football",
+		"user1",
+		"user2",
+		"threed"
+	],
+	"projector_positions": [
+		"ft",
+		"re",
+		"rc",
+		"fc"
+	],
+	"video_sources": [
+		"hdmi",
+		"hdmi2",
+		"rgb"
 	]
 }

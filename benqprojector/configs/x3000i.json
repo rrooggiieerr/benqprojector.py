@@ -32,15 +32,61 @@
 		"vkeystone",
 		"vol"
 	],
-	"video_sources": ["hdmi", "hdmi2", "smartsystem"],
+	"3d_modes": [
+		"off",
+		"auto",
+		"tb",
+		"fs",
+		"fp",
+		"sbs",
+		"da",
+		"iv"
+	],
+	"aspect_ratios": [
+		"4:3",
+		"16:9",
+		"2.4:1",
+		"auto"
+	],
 	"audio_sources": [],
-	"picture_modes": ["bright", "livingroom", "game", "cine", "sport", "user1", "threed"],
-	"color_temperatures": ["warm", "normal", "cool"],
-	"aspect_ratios": ["4:3", "16:9", "2.4:1", "auto"],
-	"projector_positions": ["ft", "re", "rc", "fc"],
-	"menu_positions": ["center", "tl", "tr", "br", "bl"],
-	"lamp_modes": ["lnor", "eco", "seco", "custom"],
-	"3d_modes": ["off", "auto", "tb", "fs", "fp", "sbs", "da", "iv"],
+	"color_temperatures": [
+		"warm",
+		"normal",
+		"cool"
+	],
+	"lamp_modes": [
+		"lnor",
+		"eco",
+		"seco",
+		"custom"
+	],
+	"menu_positions": [
+		"center",
+		"tl",
+		"tr",
+		"br",
+		"bl"
+	],
+	"picture_modes": [
+		"bright",
+		"livingroom",
+		"game",
+		"cine",
+		"sport",
+		"user1",
+		"threed"
+	],
+	"poweroff_time": 14,
 	"poweron_time": 14,
-	"poweroff_time": 14
+	"projector_positions": [
+		"ft",
+		"re",
+		"rc",
+		"fc"
+	],
+	"video_sources": [
+		"hdmi",
+		"hdmi2",
+		"smartsystem"
+	]
 }

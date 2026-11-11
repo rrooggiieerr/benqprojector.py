@@ -86,28 +86,31 @@
 		"zoomi",
 		"zoomo"
 	],
-	"video_sources": [
-		"dp",
-		"dvia",
-		"dvid",
-		"hdbaset",
-		"hdmi",
-		"hdmi2",
-		"hdmi3",
-		"hdmi4",
-		"network",
-		"rgb",
-		"rgb2",
-		"rgb3",
-		"sdi",
-		"svid",
-		"usbdisplay",
-		"usbreader",
-		"vid",
-		"wireless",
-		"ypbr",
-		"ypbr2",
-		"smartsystem"
+	"3d_modes": [
+		"off",
+		"auto",
+		"tb",
+		"fs",
+		"fp",
+		"sbs",
+		"da",
+		"iv",
+		"2d3d",
+		"nvidia"
+	],
+	"aspect_ratios": [
+		"4:3",
+		"16:6",
+		"16:9",
+		"16:10",
+		"2.35",
+		"auto",
+		"real",
+		"lbox",
+		"wide",
+		"anam",
+		"anam2.35",
+		"anam16:9"
 	],
 	"audio_sources": [
 		"off",
@@ -118,6 +121,35 @@
 		"hdmi",
 		"hdmi2",
 		"hdmi3"
+	],
+	"color_temperatures": [
+		"warmer",
+		"warm",
+		"normal",
+		"cool",
+		"cooler",
+		"native"
+	],
+	"lamp_modes": [
+		"lnor",
+		"eco",
+		"seco",
+		"seco2",
+		"seco3",
+		"dimming",
+		"custom",
+		"dualbr",
+		"dualre",
+		"single",
+		"singleeco"
+	],
+	"menu_positions": [
+		"cen",
+		"center",
+		"tl",
+		"tr",
+		"br",
+		"bl"
 	],
 	"picture_modes": [
 		"dynamic",
@@ -152,67 +184,35 @@
 		"aicine",
 		"hdraicine"
 	],
-	"color_temperatures": [
-		"warmer",
-		"warm",
-		"normal",
-		"cool",
-		"cooler",
-		"native"
-	],
-	"aspect_ratios": [
-		"4:3",
-		"16:6",
-		"16:9",
-		"16:10",
-		"2.35",
-		"auto",
-		"real",
-		"lbox",
-		"wide",
-		"anam",
-		"anam2.35",
-		"anam16:9"
-	],
+	"poweroff_time": 100,
+	"poweron_time": 100,
 	"projector_positions": [
 		"ft",
 		"re",
 		"rc",
 		"fc"
 	],
-	"menu_positions": [
-		"cen",
-		"center",
-		"tl",
-		"tr",
-		"br",
-		"bl"
-	],
-	"lamp_modes": [
-		"lnor",
-		"eco",
-		"seco",
-		"seco2",
-		"seco3",
-		"dimming",
-		"custom",
-		"dualbr",
-		"dualre",
-		"single",
-		"singleeco"
-	],
-	"3d_modes": [
-		"off",
-		"auto",
-		"tb",
-		"fs",
-		"fp",
-		"sbs",
-		"da",
-		"iv",
-		"2d3d",
-		"nvidia"
-	],
-	"poweron_time": 100,
-	"poweroff_time": 100
+	"video_sources": [
+		"dp",
+		"dvia",
+		"dvid",
+		"hdbaset",
+		"hdmi",
+		"hdmi2",
+		"hdmi3",
+		"hdmi4",
+		"network",
+		"rgb",
+		"rgb2",
+		"rgb3",
+		"sdi",
+		"svid",
+		"usbdisplay",
+		"usbreader",
+		"vid",
+		"wireless",
+		"ypbr",
+		"ypbr2",
+		"smartsystem"
+	]
 }

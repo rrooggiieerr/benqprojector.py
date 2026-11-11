@@ -28,51 +28,6 @@
 		"standbymnt",
 		"vol"
 	],
-	"video_sources": [
-		"hdmi",
-		"rgb",
-		"rgb2",
-		"svid",
-		"vid"
-	],
-	"audio_sources": [
-		"off",
-		"rgb",
-		"rgb2",
-		"vid",
-		"hdmi"
-	],
-	"picture_modes": [
-		"dynamic",
-		"preset",
-		"srgb",
-		"cine",
-		"user1",
-		"user2"
-	],
-	"color_temperatures": [
-		"warm",
-		"normal",
-		"cool"
-	],
-	"aspect_ratios": [
-		"4:3",
-		"16:9",
-		"16:10",
-		"auto",
-		"real"
-	],
-	"projector_positions": [
-		"ft",
-		"re",
-		"rc",
-		"fc"
-	],
-	"lamp_modes": [
-		"lnor",
-		"eco",
-		"seco"
-	],
 	"3d_modes": [
 		"off",
 		"auto",
@@ -83,5 +38,50 @@
 		"da",
 		"iv"
 	],
-	"menu_positions": []
+	"aspect_ratios": [
+		"4:3",
+		"16:9",
+		"16:10",
+		"auto",
+		"real"
+	],
+	"audio_sources": [
+		"off",
+		"rgb",
+		"rgb2",
+		"vid",
+		"hdmi"
+	],
+	"color_temperatures": [
+		"warm",
+		"normal",
+		"cool"
+	],
+	"lamp_modes": [
+		"lnor",
+		"eco",
+		"seco"
+	],
+	"menu_positions": [],
+	"picture_modes": [
+		"dynamic",
+		"preset",
+		"srgb",
+		"cine",
+		"user1",
+		"user2"
+	],
+	"projector_positions": [
+		"ft",
+		"re",
+		"rc",
+		"fc"
+	],
+	"video_sources": [
+		"hdmi",
+		"rgb",
+		"rgb2",
+		"svid",
+		"vid"
+	]
 }

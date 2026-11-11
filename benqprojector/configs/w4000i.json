@@ -56,15 +56,64 @@
 		"vkeystone",
 		"vol"
 	],
-	"video_sources": ["hdmi", "hdmi2", "hdmi3", "usbreader"],
+	"3d_modes": [
+		"off",
+		"auto",
+		"tb",
+		"fs",
+		"fp",
+		"sbs"
+	],
+	"aspect_ratios": [
+		"4:3",
+		"16:9",
+		"2.4",
+		"AUTO"
+	],
 	"audio_sources": [],
-	"picture_modes": ["bright", "brightcine", "filmmaker", "cine", "user1", "isfday", "isfnight", "threed", "hdr+", "hlg", "hdr10"],
-	"color_temperatures": ["warm", "normal", "cool"],
-	"aspect_ratios": ["4:3", "16:9", "2.4", "AUTO"],
-	"projector_positions": ["ft", "re", "rc", "fc"],
-	"menu_positions": ["center", "tl", "tr", "br", "bl"],
-	"lamp_modes": ["lnor", "eco", "seco", "custom"],
-	"3d_modes": ["off", "auto", "tb", "fs", "fp", "sbs"],
+	"color_temperatures": [
+		"warm",
+		"normal",
+		"cool"
+	],
+	"lamp_modes": [
+		"lnor",
+		"eco",
+		"seco",
+		"custom"
+	],
+	"menu_positions": [
+		"center",
+		"tl",
+		"tr",
+		"br",
+		"bl"
+	],
+	"picture_modes": [
+		"bright",
+		"brightcine",
+		"filmmaker",
+		"cine",
+		"user1",
+		"isfday",
+		"isfnight",
+		"threed",
+		"hdr+",
+		"hlg",
+		"hdr10"
+	],
+	"poweroff_time": 14,
 	"poweron_time": 14,
-	"poweroff_time": 14
+	"projector_positions": [
+		"ft",
+		"re",
+		"rc",
+		"fc"
+	],
+	"video_sources": [
+		"hdmi",
+		"hdmi2",
+		"hdmi3",
+		"usbreader"
+	]
 }

@@ -25,14 +25,34 @@
 		"zoomi",
 		"zoomo"
 	],
-	"video_sources": ["rgb", "hdmi", "hdmi2", "vid", "svid"],
-	"audio_sources": [],
-	"picture_modes": ["preset", "cine", "user1", "user2", "dynamic"],
-	"color_temperatures": [],
-	"aspect_ratios": ["4:3", "16:9", "auto", "real"],
-	"projector_positions": [],
-	"lamp_modes": ["lnor", "eco"],
 	"3d_modes": [],
+	"aspect_ratios": [
+		"4:3",
+		"16:9",
+		"auto",
+		"real"
+	],
+	"audio_sources": [],
+	"color_temperatures": [],
+	"lamp_modes": [
+		"lnor",
+		"eco"
+	],
+	"picture_modes": [
+		"preset",
+		"cine",
+		"user1",
+		"user2",
+		"dynamic"
+	],
+	"poweroff_time": 100,
 	"poweron_time": 100,
-	"poweroff_time": 100
+	"projector_positions": [],
+	"video_sources": [
+		"rgb",
+		"hdmi",
+		"hdmi2",
+		"vid",
+		"svid"
+	]
 }
