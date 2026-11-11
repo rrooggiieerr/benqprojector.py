@@ -230,16 +230,3 @@ class BenQSerialConnection(BenQConnection):
             raise BenQConnectionError(str(ex)) from ex
 
         return await super().open()
-
-
-class BenQTelnetConnection(BenQSerialConnection):
-    """Class to handle the telnet connection type."""
-
-    _read_timeout = _TELNET_TIMEOUT
-
-    def __init__(self, host: str, port: int = DEFAULT_PORT, record: bool = False):
-        """Initialise a telnet connection to the BenQ projector."""
-        assert host is not None
-        assert port is not None
-
-        super().__init__(f"socket://{host}:{port}", record)
