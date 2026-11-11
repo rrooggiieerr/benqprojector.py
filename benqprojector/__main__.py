@@ -123,7 +123,6 @@ if __name__ == "__main__":
     argparser.add_argument(
         "action", choices=["status", "on", "off", "monitor", "examine"]
     )
-    argparser.add_argument("--wait", dest="wait", action="store_true")
     argparser.add_argument("--debug", dest="debug_logging", action="store_true")
     argparser.add_argument("--record", dest="record", action="store_true")
 
