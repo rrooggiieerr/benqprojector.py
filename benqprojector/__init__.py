@@ -13,7 +13,6 @@ with contextlib.suppress(ModuleNotFoundError):
 from abc import ABC
 import asyncio
 from collections.abc import Callable
-from datetime import datetime
 import importlib.resources
 import json
 from json.decoder import JSONDecodeError
@@ -553,7 +552,7 @@ class BenQProjector(ABC):
             logger.warning("Prompt not received, wait for it")
             self._has_to_wait_for_prompt = True
 
-        start_time = datetime.now()
+        start_time = time.monotonic()
         while True:
             response = await self.connection.read(100)
             response = response.strip(b"\x00")
@@ -571,7 +570,7 @@ class BenQProjector(ABC):
             else:
                 logger.warning("Unexpected response: %s", response)
 
-            if (datetime.now() - start_time).total_seconds() > 1:
+            if time.monotonic() - start_time > 1:
                 raise BenQPromptTimeoutError
 
             await asyncio.sleep(0.05)
@@ -581,7 +580,7 @@ class BenQProjector(ABC):
 
     async def _read_response(self) -> str:
         response = b""
-        last_response = datetime.now()
+        last_response = time.monotonic()
         while True:
             _response = await self.connection.readuntil(self._separator)
             if len(_response) > 0:
@@ -592,9 +591,9 @@ class BenQProjector(ABC):
                     logger.debug("Response: %s", text)
 
                     return text
-                last_response = datetime.now()
+                last_response = time.monotonic()
 
-            if (datetime.now() - last_response).total_seconds() > _RESPONSE_TIMEOUT:
+            if time.monotonic() - last_response > _RESPONSE_TIMEOUT:
                 logger.warning("Timeout while waiting for response")
                 self._has_to_wait_for_prompt = True
                 raise BenQResponseTimeoutError
@@ -789,7 +788,7 @@ class BenQProjector(ABC):
             self.power_status == status
             and self._power_timestamp is not None
             and duration is not None
-            and (time.time() - self._power_timestamp) <= duration
+            and (time.monotonic() - self._power_timestamp) <= duration
         )
 
     async def update_power(self) -> bool:
@@ -1039,7 +1038,7 @@ class BenQProjector(ABC):
                 response = await self._send_command(BenQCommand(CMD_POWER, ACTION_ON))
                 if response == "on":
                     self.power_status = self.POWERSTATUS_POWERINGON
-                    self._power_timestamp = time.time()
+                    self._power_timestamp = time.monotonic()
 
                     return True
             except BenQBlockedItemError:
@@ -1099,7 +1098,7 @@ class BenQProjector(ABC):
                 response = await self._send_command(BenQCommand(CMD_POWER, ACTION_OFF))
                 if response == "off":
                     self.power_status = self.POWERSTATUS_POWERINGOFF
-                    self._power_timestamp = time.time()
+                    self._power_timestamp = time.monotonic()
 
                     return True
             except BenQBlockedItemError:
