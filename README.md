@@ -85,6 +85,7 @@ The following projectors are known to work:
 * W1250
 * W4000i
 * W4100i
+* W5700 (over a serial to network bridge)
 * X3000i
 
 The following projectors are not tested but use the same protocol according to the documentation:

@@ -80,6 +80,8 @@ class BenQProjector(ABC):
     # detect if this is the case
     has_prompt = None
     _separator = b"\n"
+    # Frame every command as <CR>*command#<CR>, see _apply_model_quirks
+    _cr_framing = False
 
     _init: bool = True
     _has_to_wait_for_prompt = True
@@ -166,6 +168,7 @@ class BenQProjector(ABC):
             # running interactively
             self._interactive = True
 
+        self._blocked_commands = set()
         self._connection_lock = asyncio.Lock()
         self._listeners = []
         self._listener_commands = []
@@ -248,11 +251,13 @@ class BenQProjector(ABC):
 
         if not self.model:
             await self._read_config("minimal")
+        else:
+            await self._apply_model_quirks()
 
         if self.has_prompt is None:
             self.has_prompt = await self._detect_prompt()
 
-        if self.has_prompt is False:
+        if self.has_prompt is False and not self._cr_framing:
             self._separator = b"#"
 
         power = None
@@ -327,6 +332,9 @@ class BenQProjector(ABC):
 
         self._poweron_time = await self.get_config("poweron_time")
         self._poweroff_time = await self.get_config("poweroff_time")
+
+        # The model might only be known now
+        await self._apply_model_quirks()
 
         mac = None
         if self.supports_command("macaddr"):
@@ -532,6 +540,18 @@ class BenQProjector(ABC):
         finally:
             self._connection_lock.release()
 
+    async def _apply_model_quirks(self):
+        """
+        Some models (W5700) only show the command prompt while in standby. When on a bare <CR>
+        gets no prompt and corrupts the next command, so waiting for the prompt never succeeds.
+        For these models don't wait for the prompt and frame every command as
+        <CR>*command#<CR>, as the BenQ RS232 specification prescribes.
+        """
+        if await self.get_config("wait_for_prompt") is False:
+            # Keep the newline separator, some responses (Unsupported item) don't end with #
+            self.has_prompt = False
+            self._cr_framing = True
+
     async def _detect_prompt(self) -> bool:
         """
         Apparently native networked BenQ projectors don't use a prompt, while serial and thus
@@ -686,8 +706,14 @@ class BenQProjector(ABC):
         if self.has_prompt:
             await self._wait_for_prompt()
 
+        prefix = ""
+        if self._cr_framing:
+            # Drop late responses of previous commands, there's no prompt to sync on
+            await self.connection.reset()
+            prefix = "\r"
+
         logger.debug("command %s", command)
-        await self.connection.write(f"{command}\r".encode("ascii"))
+        await self.connection.write(f"{prefix}{command}\r".encode("ascii"))
 
     def _parse_response(self, command: BenQCommand, response, lowercase: bool = True):
         # Lowercase the response
@@ -704,8 +730,11 @@ class BenQProjector(ABC):
             raise BenQUnsupportedItemError(command)
 
         if lowercase_response in ["*block item#", "block item"]:
-            if not self._interactive:
+            # A blocked item is only unavailable in the current state (the W5700 blocks appmod
+            # while on), polling would log it on every update: warn once until it answers again
+            if not self._interactive and command.command not in self._blocked_commands:
                 logger.warning("Command %s blocked item", command.raw_command)
+            self._blocked_commands.add(command.command)
             raise BenQBlockedItemError(command)
 
         if command.action is None:
@@ -737,6 +766,7 @@ class BenQProjector(ABC):
         if lowercase:
             response = response.lower()
 
+        self._blocked_commands.discard(command.command)
         logger.debug("Processed response: %s", response)
 
         return response
@@ -828,6 +858,13 @@ class BenQProjector(ABC):
                 and (time.time() - self._power_timestamp) <= self._poweron_time
             ):
                 logger.debug("Projector still powering on")
+            elif (
+                self.power_status == self.POWERSTATUS_POWERINGOFF
+                and (time.time() - self._power_timestamp) <= self._poweroff_time
+            ):
+                # Some models (W5700) keep reporting on for a few seconds after
+                # being turned off
+                logger.debug("Projector still powering off")
             else:
                 self.power_status = self.POWERSTATUS_ON
                 self._power_timestamp = None
