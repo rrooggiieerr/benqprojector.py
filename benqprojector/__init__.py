@@ -1215,8 +1215,6 @@ class BenQProjector(ABC):
 class BenQProjectorSerial(BenQProjector):
     """BenQ Projector class for controlling BenQ projectors over a serial connection."""
 
-    has_prompt: bool | None = True
-
     def __init__(
         self,
         serial_port: str,
@@ -1233,6 +1231,9 @@ class BenQProjectorSerial(BenQProjector):
         connection = BenQSerialConnection(serial_port, baud_rate, record)
 
         super().__init__(connection, model_hint)
+
+        if self.has_prompt is None and not connection.is_network:
+            self.has_prompt = True
 
 
 class BenQProjectorTelnet(BenQProjectorSerial):

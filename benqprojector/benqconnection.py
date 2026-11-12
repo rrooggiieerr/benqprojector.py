@@ -23,6 +23,15 @@ _TELNET_TIMEOUT = 0.2
 
 DEFAULT_PORT = 8000
 
+# serialx URL schemes which connect over the network instead of a local serial port
+NETWORK_URL_SCHEMES = (
+    "socket://",
+    "tcp://",
+    "rfc2217://",
+    "esphome://",
+    "esphome-hass://",
+)
+
 
 class BenQConnectionError(Exception):
     """BenQ Connection Error.
@@ -215,10 +224,13 @@ class BenQSerialConnection(BenQConnection):
         self._path = path
         self._baud_rate = baud_rate
 
-        if path.startswith(
-            ("socket://", "rfc2217://", "esphome://", "esphome-hass://", "pyodide://")
-        ):
+        if self.is_network:
             self._read_timeout = _TELNET_TIMEOUT
+
+    @property
+    def is_network(self) -> bool:
+        """True if the connection is a network connection instead of a local serial port."""
+        return self._path.startswith(NETWORK_URL_SCHEMES)
 
     def __str__(self) -> str:
         """Return the path of the connection."""
