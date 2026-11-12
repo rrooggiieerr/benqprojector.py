@@ -501,11 +501,9 @@ class BenQProjector(ABC):
             return None
 
         try:
-            locked = await asyncio.wait_for(
+            await asyncio.wait_for(
                 self._connection_lock.acquire(), timeout=_CONNECTION_LOCK_TIMEOUT
             )
-            if not locked:
-                raise BenQTooBusyError(command)
         except asyncio.exceptions.TimeoutError as ex:
             raise BenQTooBusyError(command) from ex
 
@@ -760,11 +758,9 @@ class BenQProjector(ABC):
             return None
 
         try:
-            locked = await asyncio.wait_for(
+            await asyncio.wait_for(
                 self._connection_lock.acquire(), timeout=_CONNECTION_LOCK_TIMEOUT
             )
-            if not locked:
-                raise BenQTooBusyError(command)
         except asyncio.exceptions.TimeoutError as ex:
             raise BenQTooBusyError(command) from ex
 
