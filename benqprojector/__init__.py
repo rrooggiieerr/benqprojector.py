@@ -1179,6 +1179,9 @@ class BenQProjector(ABC):
             except BenQUnsupportedItemError:
                 logger.debug("Need increments to set volume")
                 self._use_volume_increments = True
+            except BenQConnectionError, BenQProjectorError:
+                logger.exception("Unable to set volume")
+                return False
 
         if self.volume is None:
             await self.update_volume()
