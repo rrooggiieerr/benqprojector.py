@@ -690,6 +690,14 @@ class BenQProjector(ABC):
     def _parse_response(
         self, command: BenQCommand, response: str, lowercase: bool = True
     ) -> str:
+        # Some projectors send the command echo and the response on one line, the W700
+        # sends >*modelname=?#W700 when it is turned off
+        for echo in (f">{command.raw_command}", command.raw_command):
+            if response.lower().startswith(echo.lower()) and len(response) > len(echo):
+                logger.debug("Removing command echo from response: %s", response)
+                response = response[len(echo) :]
+                break
+
         # Lowercase the response
         lowercase_response = response.lower()
 
