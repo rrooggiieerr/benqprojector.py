@@ -639,6 +639,16 @@ class BenQProjector(ABC):
 
             if (
                 command.action == "?"
+                and echo_received
+                and response in (command.raw_command, f">{command.raw_command}")
+            ):
+                # Repeated command echo, the W1100 echoes *bri=?# twice. A query
+                # can't be the response, as that would have ? as value.
+                logger.debug("Command echo received again")
+                continue
+
+            if (
+                command.action == "?"
                 and not echo_received
                 and response == command.raw_command
             ):
