@@ -88,9 +88,22 @@ class BenQConnection(ABC):
         return False
 
     async def reset(self) -> bool:
-        """Resets the reader and drains the writer of the connection."""
-        await self.read(-1)
+        """Discard the already received input and drain the writer of the connection."""
+        assert self._reader is not None, "Connection is not open"
         assert self._writer is not None, "Connection is not open"
+
+        while True:
+            try:
+                # Returns buffered data immediately, times out if there is none
+                async with asyncio.timeout(0):
+                    data = await self._reader.read(1024)
+            except TimeoutError:
+                break
+            if not data:
+                break
+            if self._record_file:
+                await self._record_file.write(data)
+
         await self._writer.drain()
         return True
 
