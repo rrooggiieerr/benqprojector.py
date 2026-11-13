@@ -629,7 +629,10 @@ class BenQProjector(ABC):
                     await asyncio.sleep(0.05)
                 continue
 
-            if response == ">":
+            # The response without the command prompt, and null bytes, in front of it
+            without_prompt = response.lstrip(">" + WHITESPACE)
+
+            if without_prompt == "":
                 logger.debug("Response is command prompt >")
                 self._has_to_wait_for_prompt = True
                 continue
@@ -637,52 +640,44 @@ class BenQProjector(ABC):
             if (
                 command.action == "?"
                 and echo_received
-                and response in (command.raw_command, f">{command.raw_command}")
+                and without_prompt == command.raw_command
             ):
                 # Repeated command echo, the W1100 echoes *bri=?# twice. A query
                 # can't be the response, as that would have ? as value.
                 logger.debug("Command echo received again")
                 continue
 
-            if (
-                command.action == "?"
-                and not echo_received
-                and response == command.raw_command
-            ):
-                # Command echo.
-                logger.debug("Command successfully sent")
-                echo_received = True
-                self._expect_command_echo = True
-                continue
-
-            if not echo_received and response == f">{command.raw_command}":
-                # Command echo.
-                logger.debug("Command successfully sent")
-                echo_received = True
-                self._expect_command_echo = True
-                continue
-
-            if self._expect_command_echo and not echo_received:
-                if command.action != "?" and response == command.raw_command:
-                    # Command echo.
+            if not echo_received:
+                if without_prompt == command.raw_command and (
+                    self._expect_command_echo
+                    or command.action == "?"
+                    or without_prompt != response
+                ):
+                    # Command echo. The echo of a query, or an echo after the prompt, can't be
+                    # the response. The echo of another command without the prompt could be the
+                    # response, keep it in case no other response follows.
                     logger.debug("Command successfully sent")
                     echo_received = True
-                    previous_response = response
+                    self._expect_command_echo = True
+                    if command.action != "?" and without_prompt == response:
+                        previous_response = response
                     continue
-                logger.warning(
-                    "No command echo received for command %s", command.command
-                )
-                self._expect_command_echo = False
+
+                if self._expect_command_echo:
+                    logger.warning(
+                        "No command echo received for command %s", command.command
+                    )
+                    self._expect_command_echo = False
 
             return response
 
     async def _send_raw_command(self, command: str) -> None:
         """Send a raw command to the BenQ projector."""
-        if self.has_prompt:
-            await self._wait_for_prompt()
+        # Discard what is left of earlier responses
+        await self.connection.reset()
 
         logger.debug("command %s", command)
-        await self.connection.write(f"{command}\r".encode("ascii"))
+        await self.connection.write(f"\r{command}\r".encode("ascii"))
 
     def _parse_response(
         self, command: BenQCommand, response: str, lowercase: bool = True
