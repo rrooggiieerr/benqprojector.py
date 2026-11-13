@@ -1,4 +1,7 @@
-"""
+"""Tests parsing the responses of projectors, without a projector.
+
+The responses come from the quirks of real projectors, see quirks.md.
+
 Created on 27 Nov 2022
 
 @author: Rogier van Staveren
@@ -10,6 +13,8 @@ from benqprojector import (
     BenQBlockedItemError,
     BenQCommand,
     BenQIllegalFormatError,
+    BenQInvallidResponseError,
+    BenQProjectorError,
     BenQProjectorSerial,
     BenQUnsupportedItemError,
 )
@@ -19,8 +24,8 @@ BAUD_RATE = 115200
 
 
 @pytest.fixture
-def projector():
-    # Don't need to connect to the projector to test parsing responses
+def parser() -> BenQProjectorSerial:
+    """A projector object to parse responses with, it isn't connected."""
     return BenQProjectorSerial(SERIAL_PORT, BAUD_RATE)
 
 
@@ -42,6 +47,14 @@ def projector():
             "1383",
             # The W1100 ltim command does include spaces and does not end with #
             id="w1100_ltim",
+        ),
+        pytest.param(
+            BenQCommand("ltim"),
+            "*ltim=\x00 1386",
+            True,
+            "1386",
+            # The W1100 lamp time can have a null byte in front of the value
+            id="w1100_ltim_null_byte",
         ),
         pytest.param(
             BenQCommand("modelname"),
@@ -106,22 +119,20 @@ def projector():
             id="w6000l_modelname",
         ),
         pytest.param(
-            BenQCommand("modelname"),
-            "*MODELNAME=W1110#",
+            BenQCommand("sour"),
+            "*SOUR=HDMI#",
             False,
-            "W1110",
-            # The W2000 modelname command returns W1110 when the projector is
-            # turned off
-            id="w2000_modelname_projectoroff",
+            "HDMI",
+            # The case of the value is kept
+            id="keep_case",
         ),
         pytest.param(
-            BenQCommand("modelname"),
-            "*MODELNAME=W2000#",
-            False,
-            "W2000",
-            # The W2000 modelname command returns W2000 when the projector is
-            # turned on
-            id="w2000_modelname_projectoron",
+            BenQCommand("sour"),
+            "*SOUR=HDMI#",
+            True,
+            "hdmi",
+            # Or the value is lowercased
+            id="lowercase",
         ),
         pytest.param(
             BenQCommand("up", None),
@@ -134,8 +145,15 @@ def projector():
         ),
     ],
 )
-def test_parse_response(projector, command, raw_response, lowercase, expected):
-    response = projector._parse_response(command, raw_response, lowercase)
+def test_parse_response(
+    parser: BenQProjectorSerial,
+    command: BenQCommand,
+    raw_response: str,
+    lowercase: bool,
+    expected: str,
+) -> None:
+    """The value is read from the response."""
+    response = parser._parse_response(command, raw_response, lowercase)
     assert response == expected
 
 
@@ -152,9 +170,48 @@ def test_parse_response(projector, command, raw_response, lowercase, expected):
             # The W1100 returns the error without leading * and trailing #
             id="w1100_unsupported_item",
         ),
+        pytest.param(
+            "*Unsupported Item#",
+            BenQUnsupportedItemError,
+            # The W4000i and W4100i write Item with a capital I
+            id="w4100i_unsupported_item",
+        ),
+        pytest.param(
+            "*Unsupporteditem#",
+            BenQUnsupportedItemError,
+            # The W2700 writes Unsupporteditem without a space
+            id="w2700_unsupported_item",
+        ),
+        pytest.param(
+            "Illegal format",
+            BenQIllegalFormatError,
+            # The W2700 returns the error without leading * and trailing #
+            id="w2700_illegal_format",
+        ),
         pytest.param("*Block item#", BenQBlockedItemError, id="block_item"),
+        pytest.param("Block item", BenQBlockedItemError, id="block_item_bare"),
     ],
 )
-def test_parse_response_error(projector, raw_response, error_class):
+def test_parse_response_error(
+    parser: BenQProjectorSerial,
+    raw_response: str,
+    error_class: type[BenQProjectorError],
+) -> None:
+    """An error response raises its error."""
     with pytest.raises(error_class):
-        projector._parse_response(BenQCommand("whatever"), raw_response)
+        parser._parse_response(BenQCommand("whatever"), raw_response)
+
+
+@pytest.mark.parametrize(
+    ("command", "raw_response"),
+    [
+        pytest.param(BenQCommand("pow"), "*SOUR=HDMI#", id="other_command"),
+        pytest.param(BenQCommand("pow"), "nonsense", id="no_response_format"),
+    ],
+)
+def test_parse_invalid_response(
+    parser: BenQProjectorSerial, command: BenQCommand, raw_response: str
+) -> None:
+    """A response to another command, or something which isn't a response, is invalid."""
+    with pytest.raises(BenQInvallidResponseError):
+        parser._parse_response(command, raw_response)
