@@ -698,7 +698,12 @@ class BenQProjector(ABC):
                 logger.error("Command %s illegal format", command.raw_command)
             raise BenQIllegalFormatError(command)
 
-        if lowercase_response in ["*unsupported item#", "unsupported item"]:
+        # The W2700 sends *Unsupporteditem#, without a space
+        if lowercase_response in [
+            "*unsupported item#",
+            "unsupported item",
+            "*unsupporteditem#",
+        ]:
             if not self._interactive:
                 logger.warning("Command %s unsupported item", command.raw_command)
             raise BenQUnsupportedItemError(command)
