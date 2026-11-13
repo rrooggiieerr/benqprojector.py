@@ -19,6 +19,26 @@ from .benqclasses import (
 
 logger = logging.getLogger(__name__)
 
+# Attempts to restore a mode after detecting the modes, and the delay between them
+RESTORE_ATTEMPTS = 3
+RESTORE_DELAY = 1.0
+
+# Commands which are not detected, as they change what the projector shows
+IGNORE_COMMANDS = (
+    "menu",
+    "up",
+    "down",
+    "left",
+    "right",
+    "enter",
+    "back",
+    "zoomi",
+    "zoomo",
+    "auto",
+    "focus",
+    "error",
+)
+
 
 class BenQProjectorExamine:
     """BenQProjectorExamine class for detecting BenQ projector features."""
@@ -55,26 +75,13 @@ class BenQProjectorExamine:
         else:
             logger.info("Detecting supported commands")
 
-        # Empty the current list of supported commands.
-        self._supported_commands = None
+        # Empty the projector's list of supported commands, else only the commands already
+        # known to be supported are tried.
+        self._projector._supported_commands = None  # noqa: SLF001
         supported_commands = []
-        ignore_commands = [
-            "menu",
-            "up",
-            "down",
-            "left",
-            "right",
-            "enter",
-            "back",
-            "zoomi",
-            "zoomo",
-            "auto",
-            "focus",
-            "error",
-        ]
         # Loop through all known commands and test if a response is given.
         for command in self._projector.projector_config_all.get("commands", []):
-            if command in ignore_commands:
+            if command in IGNORE_COMMANDS:
                 continue
 
             retries = 0
@@ -111,8 +118,9 @@ class BenQProjectorExamine:
                     # Give the projector some time to process command
                     await asyncio.sleep(0.2)
                 break
-        # Set the list of known commands.
+        # Set the list of known commands, the modes are only detected for these commands.
         self._supported_commands = supported_commands
+        self._projector._supported_commands = supported_commands  # noqa: SLF001
 
         if self._projector._interactive:  # noqa: SLF001
             print()
@@ -134,52 +142,80 @@ class BenQProjectorExamine:
         else:
             logger.info("Detecting supported video sources")
 
-        # Store current mode
-        current_mode = await self._projector.send_command(command)
+        # Store the current mode exactly as the projector reports it, to restore it later
+        current_mode = await self._read_mode(command)
         if not self._projector._interactive:  # noqa: SLF001
             logger.info("Current %s: %s", description, current_mode)
         if current_mode is None:
             return []
 
         supported_modes: list[str] = []
-        # Loop through all known modes and test if a response is given.
-        for mode in all_modes:
-            label: str | None = mode
-            try:
+        try:
+            # Loop through all known modes and test if a response is given.
+            for mode in all_modes:
+                label: str | None = mode
                 try:
-                    response = await self._projector._send_command(  # noqa: SLF001
-                        BenQCommand(command, mode)
-                    )
-                    if response is not None:
+                    try:
+                        response = await self._projector._send_command(  # noqa: SLF001
+                            BenQCommand(command, mode)
+                        )
+                        if response is not None:
+                            supported_modes.append(mode)
+                        else:
+                            label = None
+                    except BenQBlockedItemError:
                         supported_modes.append(mode)
-                    else:
-                        label = None
-                except BenQBlockedItemError:
-                    supported_modes.append(mode)
-                    label = f"{mode}?"
-                except BenQResponseTimeoutError:
-                    supported_modes.append(mode)
-                    label = f"{mode}¿"
+                        label = f"{mode}?"
+                    except BenQResponseTimeoutError:
+                        supported_modes.append(mode)
+                        label = f"{mode}¿"
 
-                if label:
-                    # A response is given, the mode is supported.
-                    if self._projector._interactive:  # noqa: SLF001
-                        print(f" {label}", end="", flush=True)
-                    else:
-                        logger.debug("Mode %s supported", label)
-            except BenQProjectorError:
-                pass
-            finally:
-                # Give the projector some time to process command
-                await asyncio.sleep(0.2)
-
-        # Revert mode back to current mode
-        await self._projector.send_command(command, current_mode)
+                    if label:
+                        # A response is given, the mode is supported.
+                        if self._projector._interactive:  # noqa: SLF001
+                            print(f" {label}", end="", flush=True)
+                        else:
+                            logger.debug("Mode %s supported", label)
+                except BenQProjectorError:
+                    pass
+                finally:
+                    # Give the projector some time to process command
+                    await asyncio.sleep(0.2)
+        finally:
+            # Always restore the original mode, also when the detection is interrupted
+            await self._restore_mode(command, current_mode)
 
         if self._projector._interactive:  # noqa: SLF001
             print()
 
         return supported_modes
+
+    async def _read_mode(self, command: str) -> str | None:
+        """Read the current mode of a command, exactly as the projector reports it."""
+        try:
+            return await self._projector._send_command(  # noqa: SLF001
+                BenQCommand(command), lowercase_response=False
+            )
+        except BenQProjectorError:
+            return None
+
+    async def _restore_mode(self, command: str, mode: str) -> bool:
+        """Set a command back to the given mode, retrying when the projector refuses."""
+        for attempt in range(1, RESTORE_ATTEMPTS + 1):
+            try:
+                response = await self._projector._send_command(  # noqa: SLF001
+                    BenQCommand(command, mode), lowercase_response=False
+                )
+                if response is not None and response.lower() == mode.lower():
+                    return True
+            except BenQProjectorError:
+                pass
+            if attempt < RESTORE_ATTEMPTS:
+                # The projector may still be busy, e.g. switching sources
+                await asyncio.sleep(RESTORE_DELAY * attempt)
+
+        logger.warning("Unable to restore %s to %s", command, mode)
+        return False
 
     async def detect_video_sources(self) -> list[str]:
         """Detect which video sources are supported by the projector."""
