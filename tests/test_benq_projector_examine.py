@@ -16,7 +16,13 @@ import pytest
 from benqprojector import BenQProjectorSerial
 from benqprojector.benqexamine import BenQProjectorExamine
 
-from .conftest import MODE_COMMANDS, expected_features, remove_examine_pauses
+from .conftest import (
+    MODE_COMMANDS,
+    NO_PICTURE,
+    PICTURE_MODES,
+    expected_features,
+    remove_examine_pauses,
+)
 from .simulation import SimulatedProjector
 
 MODEL = "W1110"
@@ -52,7 +58,10 @@ async def test_detect_commands(
 
 @pytest.mark.parametrize("key", list(MODE_COMMANDS))
 async def test_detect_modes(
-    connected_examine: BenQProjectorExamine, hardware: bool, key: str
+    connected_examine: BenQProjectorExamine,
+    connected_projector: BenQProjectorSerial,
+    hardware: bool,
+    key: str,
 ) -> None:
     """The supported modes are detected."""
     # The modes are only detected for the supported commands
@@ -60,6 +69,10 @@ async def test_detect_modes(
 
     modes = await getattr(connected_examine, f"detect_{key}")()
     assert modes is not None
+    if key in PICTURE_MODES and connected_projector.supports_command(
+        MODE_COMMANDS[key]
+    ):
+        assert modes, f"No {key} detected, {NO_PICTURE}"
     if not hardware:
         assert set(modes) == expected_features(MODEL)[key]
 

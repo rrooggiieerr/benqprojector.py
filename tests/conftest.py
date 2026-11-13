@@ -305,6 +305,11 @@ def examine(
     return BenQProjectorExamine(projector)
 
 
+# Modes a projector refuses without a picture on its input
+PICTURE_MODES = ("picture_modes", "color_temperatures", "aspect_ratios", "3d_modes")
+NO_PICTURE = "is there a picture on the projector's input?"
+
+
 async def assert_examine(
     projector: BenQProjectorSerial,
     examine: BenQProjectorExamine,
@@ -315,7 +320,12 @@ async def assert_examine(
 
     features = await examine.detect_projector_features()
     assert features is not None
-    assert {key: set(value) for key, value in features.items()} == expected
+    detected = {key: set(value) for key, value in features.items()}
+    missing = [
+        key for key in PICTURE_MODES if expected.get(key) and not detected.get(key)
+    ]
+    assert not missing, f"No {', '.join(missing)} detected, {NO_PICTURE}"
+    assert detected == expected
 
 
 def expected_features(
