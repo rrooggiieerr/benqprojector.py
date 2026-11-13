@@ -1,5 +1,6 @@
 {
 	"commands": [
+		"modelname",
 		"pow"
 	],
 	"3d_modes": [],
