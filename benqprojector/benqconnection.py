@@ -162,7 +162,7 @@ class BenQConnection(ABC):
 
         return b""
 
-    async def readuntil(self, separator: bytes = b"\n") -> bytes:
+    async def readuntil(self, separator: bytes | tuple[bytes, ...] = b"\n") -> bytes:
         """Read data until separator is found."""
         assert self._reader is not None, "Connection is not open"
         if self._reader.at_eof():

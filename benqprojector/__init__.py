@@ -52,7 +52,7 @@ RESPONSE_RE_LOOSE = re.compile(r"^\*?([^=]*)=([^#]*)#?$")
 RESPONSE_RE_STATE_ONLY = re.compile(r"^\*?()([^#]*?)#?$")
 
 WHITESPACE = string.whitespace + "\x00"
-END_OF_RESPONSE = b"#\n\r\x00"
+END_OF_LINE = (b"#", b"\n")
 
 _RESPONSE_TIMEOUT = 5.0
 _CONNECTION_LOCK_TIMEOUT = 1
@@ -74,7 +74,6 @@ class BenQProjector(ABC):
     # Projectors with integrated network don't seem to have a command prompt, the code tries to
     # detect if this is the case
     has_prompt: bool | None = None
-    _separator = b"\n"
 
     _init: bool = True
     _has_to_wait_for_prompt = True
@@ -234,9 +233,6 @@ class BenQProjector(ABC):
 
         if self.has_prompt is None:
             self.has_prompt = await self._detect_prompt()
-
-        if self.has_prompt is False:
-            self._separator = b"#"
 
         power = None
         try:
@@ -578,14 +574,15 @@ class BenQProjector(ABC):
         logger.warning("Prompt not detected")
         return False
 
-    async def _read_response(self) -> str:
+    async def _read_line(self) -> str:
+        """Read one line, up to END_OF_LINE, without whitespace around it."""
         response = b""
         last_response = time.monotonic()
         while True:
-            _response = await self.connection.readuntil(self._separator)
+            _response = await self.connection.readuntil(END_OF_LINE)
             if len(_response) > 0:
                 response += _response
-                if any(c in _response for c in END_OF_RESPONSE):
+                if _response.endswith(END_OF_LINE):
                     # Decode and cleanup response
                     text = response.decode(errors="ignore").strip(WHITESPACE)
                     logger.debug("Response: %s", text)
@@ -619,7 +616,7 @@ class BenQProjector(ABC):
                     response = previous_response
                 else:
                     raise BenQEmptyResponseError(command)
-            elif (response := await self._read_response()) == "":
+            elif (response := await self._read_line()) == "":
                 logger.debug("Empty line")
                 # Empty line
                 empty_line_count += 1
